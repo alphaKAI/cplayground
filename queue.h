@@ -8,11 +8,7 @@
 #define CLEANUP_THRESHOLD 64
 
 typedef struct {
-#ifdef QUEUE_USE_VECTOR
   Vector *data;
-#else
-  void **data;
-#endif
   size_t elem_size;
   size_t elem_count;
   size_t capacity;
