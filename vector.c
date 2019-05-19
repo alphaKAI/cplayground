@@ -82,3 +82,7 @@ Vector *vec_dup(Vector *v) {
   }
   return vec;
 }
+
+void vec_append(Vector *v1, Vector *v2) {
+  VecForeach(v2, e, { vec_push(v1, e); })
+}

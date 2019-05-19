@@ -6,10 +6,7 @@
 #include <stddef.h>
 
 ///////////////// util ////////////////
-void *xmalloc(size_t);
-void xfree(void **);
-
-#define xnew(T) (xmalloc(sizeof(T)))
+#include "util.h"
 
 /////////////// binary tree ///////////////
 #include "binarytree.h"
@@ -28,5 +25,9 @@ void xfree(void **);
 
 //////////////      Map    ///////////////
 #include "map.h"
+
+
+//////////////     Sexp    ///////////////
+#include "sexp.h"
 
 #endif

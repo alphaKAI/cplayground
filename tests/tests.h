@@ -11,4 +11,6 @@
 void binarytree_test(void);
 void queue_test(void);
 void functional_test(void);
+void util_test(void);
+void sexp_test(void);
 #endif
