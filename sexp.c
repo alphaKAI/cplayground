@@ -72,7 +72,7 @@ Vector *sexp_parse(sds code) {
     } else {
       if (ch == '(') {
         size_t j = nextBracket(&code[i + 1]);
-        sds tmp;
+        sds tmp = sdsempty();
         sdscpylen(tmp, &code[i + 1], j - 1);
         vec_push(_out, new_SexpObject_array(sexp_parse(tmp)));
 
@@ -99,7 +99,7 @@ Vector *sexp_parse(sds code) {
         } else if (ch == '\"' || ch == '\'') {
           if (ch == '\'' && i + 1 < sdslen(code) && code[i + 1] == '(') {
             size_t j = nextBracket(&code[i + 2]) + 1;
-            sds tmp;
+            sds tmp = sdsempty();
             sdscpylen(tmp, &code[i + 2], j - 2);
 
             vec_push(_out, new_SexpObject_array(sexp_parse(tmp)));
