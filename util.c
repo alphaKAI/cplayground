@@ -1,7 +1,9 @@
 #include "cplayground.h"
 #include "sds/sds.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void *xmalloc(size_t size) {
   void *ptr = malloc(size);
@@ -22,7 +24,7 @@ void xfree(void **p_ptr) {
   *p_ptr = NULL;
 }
 
-double dpow(double n, size_t p) {
+static double dpow(double n, size_t p) {
   double t = 1.;
   for (size_t i = 0; i < p; i++) {
     t *= n;
@@ -79,3 +81,38 @@ double parse_double(sds str) {
 
   return ret;
 }
+
+#define GenIPowWithName(T, Name)                                               \
+  static T ipow_##Name(T n, T p) {                                             \
+    T t = 1;                                                                   \
+    for (T i = 0; i < p; i++) {                                                \
+      t *= n;                                                                  \
+    }                                                                          \
+    return t;                                                                  \
+  }
+
+#define GenIPow(T) GenIPowWithName(T, T)
+
+#define GenParseNumberWithName(T, Name)                                        \
+  GenIPowWithName(T, Name);                                                    \
+  T parse_##Name(sds str) {                                                    \
+    T ret = 0;                                                                 \
+    size_t len = strlen(str);                                                  \
+                                                                               \
+    for (size_t i = 0; i < len; i++) {                                         \
+      if (!isdigit(str[i])) {                                                  \
+        fprintf(stderr, "Failed to parse %s\n", #T);                           \
+        exit(EXIT_FAILURE);                                                    \
+      }                                                                        \
+      T t = str[i] - '0';                                                      \
+      T j = len - i - 1;                                                       \
+      ret += t * ipow_##Name(10, j);                                           \
+    }                                                                          \
+                                                                               \
+    return ret;                                                                \
+  }
+
+#define GenParseNumber(T) GenParseNumberWithName(T, T)
+
+GenParseNumber(int);
+GenParseNumber(size_t);

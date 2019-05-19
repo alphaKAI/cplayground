@@ -11,4 +11,10 @@ double parse_double(sds);
 #define INT_TO_VoPTR(i) ((void *)(intptr_t)i)
 #define VoPTR_TO_INT(ptr) ((int)(intptr_t)ptr)
 
+#define GenParseNumberProtWithName(T, Name) T parse_##Name(sds str);
+#define GenParseNumberProt(T) GenParseNumberProtWithName(T, T)
+
+GenParseNumberProt(int);
+GenParseNumberProt(size_t);
+
 #endif
