@@ -4,11 +4,11 @@
 #include "cplayground.h"
 
 enum {
-  int_ty,
   float_ty,
   bool_ty,
   string_ty,
-  array_ty,
+  symbol_ty,
+  list_ty,
   object_ty,
 };
 
@@ -16,32 +16,45 @@ typedef struct SexpObject {
   int ty;
 
   union {
-    int int_val;
     double float_val;
     bool bool_val;
     sds string_val;
-    Vector *array_val;
+    sds symbol_val;
+    Vector *list_val;
     struct SexpObject *object_val;
   };
 } SexpObject;
 
+#define GenSexpObjectConstructorProtWithName(T, Name)                          \
+  SexpObject *new_SexpObject_##Name(T val);
+
 SexpObject *new_SexpObject(void);
-SexpObject *new_SexpObject_int(int);
-SexpObject *new_SexpObject_float(double);
-SexpObject *new_SexpObject_bool(bool);
-SexpObject *new_SexpObject_string(sds);
-SexpObject *new_SexpObject_array(Vector *);
-SexpObject *new_SexpObject_object(SexpObject *);
+
+GenSexpObjectConstructorProtWithName(double, float);
+GenSexpObjectConstructorProtWithName(bool, bool);
+GenSexpObjectConstructorProtWithName(sds, string);
+GenSexpObjectConstructorProtWithName(sds, symbol);
+GenSexpObjectConstructorProtWithName(Vector *, list);
+GenSexpObjectConstructorProtWithName(SexpObject *, object);
+
+#define GenGetterOfSexpObjectProtWithName(T, Name)                             \
+  T get_##Name##_val(SexpObject *obj);
+
+GenGetterOfSexpObjectProtWithName(double, float);
+GenGetterOfSexpObjectProtWithName(bool, bool);
+GenGetterOfSexpObjectProtWithName(sds, string);
+GenGetterOfSexpObjectProtWithName(sds, symbol);
+GenGetterOfSexpObjectProtWithName(Vector *, list);
+GenGetterOfSexpObjectProtWithName(SexpObject *, object);
 
 bool equal_SexpObjects(SexpObject *lhs, SexpObject *rhs);
 
-Vector *sexp_parse(sds code);
+typedef struct {
+  SexpObject *parse_result;
+  size_t read_len;
+} ParseResult;
 
-int get_int_val(SexpObject *obj);
-double get_float_val(SexpObject *obj);
-bool get_bool_val(SexpObject *obj);
-sds get_string_val(SexpObject *obj);
-Vector *get_array_val(SexpObject *obj);
-SexpObject *get_object_val(SexpObject *obj);
+ParseResult sexp_parse_expr(sds code);
 
+sds show_sexp_object(SexpObject *obj);
 #endif

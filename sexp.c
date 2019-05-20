@@ -6,22 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-static size_t nextBracket(sds code) {
-  size_t index = 0, leftCount = 1, rightCount = 0;
-
-  while (leftCount != rightCount) {
-    if (code[index] == '(') {
-      leftCount++;
-    }
-    if (code[index] == ')') {
-      rightCount++;
-    }
-    ++index;
-  }
-
-  return index;
-}
+#include <string.h>
 
 SexpObject *new_SexpObject(void) {
   SexpObject *obj = xmalloc(sizeof(SexpObject));
@@ -38,11 +23,11 @@ SexpObject *new_SexpObject(void) {
 
 #define GenSexpObjectConstructor(T) GenSexpObjectConstructorWithName(T, T)
 
-GenSexpObjectConstructor(int);
 GenSexpObjectConstructorWithName(double, float);
 GenSexpObjectConstructorWithName(bool, bool);
 GenSexpObjectConstructorWithName(sds, string);
-GenSexpObjectConstructorWithName(Vector *, array);
+GenSexpObjectConstructorWithName(sds, symbol);
+GenSexpObjectConstructorWithName(Vector *, list);
 GenSexpObjectConstructorWithName(SexpObject *, object);
 
 #define GenGetterOfSexpObjectWithName(T, Name)                                 \
@@ -53,12 +38,11 @@ GenSexpObjectConstructorWithName(SexpObject *, object);
 
 #define GenGetterOfSexpObject(T) GenGetterOfSexpObjectWithName(T, T)
 
-GenGetterOfSexpObject(int);
-
 GenGetterOfSexpObjectWithName(double, float);
 GenGetterOfSexpObjectWithName(bool, bool);
 GenGetterOfSexpObjectWithName(sds, string);
-GenGetterOfSexpObjectWithName(Vector *, array);
+GenGetterOfSexpObjectWithName(sds, symbol);
+GenGetterOfSexpObjectWithName(Vector *, list);
 GenGetterOfSexpObjectWithName(SexpObject *, object);
 
 bool equal_SexpObjects(SexpObject *lhs, SexpObject *rhs) {
@@ -67,17 +51,17 @@ bool equal_SexpObjects(SexpObject *lhs, SexpObject *rhs) {
   }
 
   switch (lhs->ty) {
-  case int_ty:
-    return lhs->int_val == rhs->int_val;
   case float_ty:
     return lhs->float_val == rhs->float_val;
   case bool_ty:
     return lhs->bool_val == rhs->bool_val;
   case string_ty:
     return sdscmp(lhs->string_val, rhs->string_val) == 0;
-  case array_ty: {
-    Vector *lv = lhs->array_val;
-    Vector *rv = rhs->array_val;
+  case symbol_ty:
+    return sdscmp(lhs->symbol_val, rhs->symbol_val) == 0;
+  case list_ty: {
+    Vector *lv = lhs->list_val;
+    Vector *rv = rhs->list_val;
 
     if (lv->len != rv->len) {
       return false;
@@ -105,107 +89,178 @@ bool equal_SexpObjects(SexpObject *lhs, SexpObject *rhs) {
   }
 }
 
-Vector *sexp_parse(sds code) {
-  Vector *_out = new_vec();
+ParseResult parse_list(sds str) {
+  ParseResult result;
+  Vector *list = new_vec();
+  size_t str_len = strlen(str);
+  size_t i = 1; // skip first paren '('
 
-  for (size_t i = 0; i < sdslen(code); ++i) {
-    char ch = code[i];
+  for (; i < str_len && str[i] != ')'; i++) {
+    ParseResult tmp_result = sexp_parse_expr(&str[i]);
+    vec_push(list, tmp_result.parse_result);
+    i += tmp_result.read_len;
+  }
 
-    if (ch == ' ') {
+  result.parse_result = new_SexpObject_list(list);
+  result.read_len = i + 1;
+
+  return result;
+}
+
+ParseResult skip_line(sds str) {
+  size_t str_len = strlen(str);
+  size_t i = 0;
+  for (; i < str_len && str[i] != '\n'; i++)
+    ;
+
+  return (ParseResult){.read_len = i};
+}
+
+#define DOT_NEXT_IS_NUMBER(str, str_len, i)                                    \
+  (str[i] == '.' && i + 1 < str_len && isdigit(str[i + 1]))
+
+ParseResult parse_number(sds str) {
+  ParseResult result;
+  size_t i = 0;
+  size_t str_len = strlen(str);
+
+  if (str[0] == '-') {
+    i++;
+  }
+  for (;
+       i < str_len && (isdigit(str[i]) || DOT_NEXT_IS_NUMBER(str, str_len, i));
+       i++)
+    ;
+
+  sds tmp = sdsempty();
+  sdscpylen(tmp, str, i);
+  double val = parse_double(tmp);
+  sdsfree(tmp);
+
+  result.parse_result = new_SexpObject_float(val);
+  result.read_len = i;
+
+  return result;
+}
+
+const char symbol_chars[] = "~!@#$%^&*-_=+:/?<>";
+
+ParseResult parse_symbol(sds str) {
+  ParseResult result;
+  size_t str_len = strlen(str);
+  size_t i = 0;
+
+  for (; i < str_len && (isalpha(str[i]) || strchr(symbol_chars, str[i])); i++)
+    ;
+
+  sds tmp = sdsempty();
+  sdscpylen(tmp, str, i);
+  result.parse_result = new_SexpObject_symbol(tmp);
+  result.read_len = i;
+
+  return result;
+}
+
+ParseResult parse_string(sds str) {
+  ParseResult result;
+  size_t str_len = strlen(str);
+  size_t i = 0;
+
+  for (; i < str_len && str[i] != '\"'; i++)
+    ;
+
+  sds tmp = sdsempty();
+  sdscpylen(tmp, str, i);
+  result.parse_result = new_SexpObject_string(tmp);
+  result.read_len = i + 1;
+
+  return result;
+}
+
+ParseResult parse_quote(sds str) {
+  ParseResult result;
+
+  ParseResult expr = sexp_parse_expr(&str[1]);
+
+  result.parse_result = new_SexpObject_object(expr.parse_result);
+  result.read_len = 1 + expr.read_len;
+
+  return result;
+}
+
+ParseResult sexp_parse_expr(sds code) {
+  size_t code_len = strlen(code);
+  for (size_t i = 0; i < code_len; i++) {
+    char c = code[i];
+
+    if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
       continue;
-    } else {
-      if (ch == '(') {
-        size_t j = nextBracket(&code[i + 1]);
-        sds tmp = sdsempty();
-        sdscpylen(tmp, &code[i + 1], j - 1);
-        vec_push(_out, new_SexpObject_array(sexp_parse(tmp)));
+    }
 
-        i += j;
-      } else if (ch == ')') {
-        return _out;
-      } else {
-        if (isdigit(ch) ||
-            (i + 1 < sdslen(code) && ch == '-' && isdigit(code[i + 1]))) {
-          sds tmp = sdsempty();
-          size_t j = i;
+    if (c == ';') {
+      i += skip_line(&code[i]).read_len;
+      continue;
+    }
 
-          do {
-            tmp = sdscatprintf(tmp, "%c", code[j]);
-            ++j;
-          } while (j < sdslen(code) &&
-                   ((code[j] != ' ' && isdigit(code[j])) ||
-                    (code[j] == '.' && j + 1 < sdslen(code) &&
-                     isdigit(code[j + 1]))));
+    if (isdigit(c)) {
+      return parse_number(&code[i]);
+    }
 
-          vec_push(_out, new_SexpObject_float(parse_double(tmp)));
+    if (c == '-' && i + 1 < code_len && isdigit(code[i + 1])) {
+      return parse_number(&code[i]);
+    }
 
-          i = j - 1;
-        } else if (ch == '\"' || ch == '\'') {
-          if (ch == '\'' && i + 1 < sdslen(code) && code[i + 1] == '(') {
-            size_t j = nextBracket(&code[i + 2]) + 1;
-            sds tmp = sdsempty();
-            sdscpylen(tmp, &code[i + 2], j - 2);
+    if (isalpha(c) || strchr(symbol_chars, c)) {
+      return parse_symbol(&code[i]);
+    }
 
-            vec_push(_out, new_SexpObject_array(sexp_parse(tmp)));
+    if (c == '\"' && i + 1 < code_len) {
+      return parse_string(&code[i + 1]);
+    }
 
-            i += j;
-          } else {
-            sds tmp = sdsempty();
-            size_t j = i + 1;
+    if (c == '(') {
+      return parse_list(&code[i]);
+    }
 
-            while (j < sdslen(code) && code[j] != ch) {
-              if (j < sdslen(code)) {
-                tmp = sdscatprintf(tmp, "%c", code[j]);
-              } else {
-                fprintf(stderr, "Syntax Error\n");
-                exit(EXIT_FAILURE);
-              }
-
-              ++j;
-            }
-
-            vec_push(_out, new_SexpObject_string(tmp));
-            i = j;
-          }
-        } else {
-          sds tmp = sdsempty();
-          size_t j = i;
-
-          while (j < sdslen(code) && code[j] != '\"' && code[j] != '\'' &&
-                 code[j] != '(' && code[j] != ')' && code[j] != ' ') {
-            tmp = sdscatprintf(tmp, "%c", code[j]);
-            ++j;
-          }
-
-          if (sdscmp(tmp, "true") == 0) {
-            vec_push(_out, new_SexpObject_bool(true));
-          } else if (sdscmp(tmp, "false") == 0) {
-            vec_push(_out, new_SexpObject_bool(false));
-          } else {
-            vec_push(_out, new_SexpObject_string(tmp));
-          }
-
-          i = j;
-        }
-      }
+    if (c == '\'') {
+      return parse_quote(&code[i]);
     }
   }
 
-  return _out;
+  fprintf(stderr, "Parse error\n");
+  exit(EXIT_FAILURE);
 }
 
 sds show_sexp_object(SexpObject *obj) {
   sds ret = sdsempty();
 
   switch (obj->ty) {
-  case int_ty:
-    ret = sdscatprintf(ret, "%d", obj->int_val);
-    break;
   case float_ty:
+    ret = sdscatprintf(ret, "%f", obj->float_val);
+    break;
   case bool_ty:
+    ret = sdscatprintf(ret, "%s", obj->bool_val ? "true" : "false");
+    break;
   case string_ty:
-  case array_ty:
-  case object_ty:
+    ret = sdscatprintf(ret, "\"%s\"", obj->string_val);
+    break;
+  case symbol_ty:
+    ret = sdscatprintf(ret, "%s", obj->string_val);
+    break;
+  case list_ty: {
+    Vector *elems = obj->list_val;
+    Vector *elems_str = new_vec();
+    for (size_t i = 0; i < elems->len; i++) {
+      vec_push(elems_str, show_sexp_object((SexpObject *)elems->data[i]));
+    }
+    ret = sdscatprintf(ret, "'(%s)", vecstrjoin(elems_str, " "));
+    break;
+  }
+  case object_ty: {
+    SexpObject *iobj = obj->object_val;
+    ret = sdscatprintf(ret, "(%s)", show_sexp_object(iobj));
+    break;
+  }
   default:
     fprintf(stderr, "[ERROR] invalid type SexpObject was given\n");
     exit(EXIT_FAILURE);

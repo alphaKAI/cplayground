@@ -8,40 +8,83 @@
 
 TEST_CASE(test_parse_num_1, {
   sds src = sdsnew("123");
-  Vector *parsed = sexp_parse(src);
-  SexpObject *obj = (SexpObject *)(parsed->data[0]);
-  assert(get_float_val(obj) == 123);
-})
+  ParseResult parsed = sexp_parse_expr(src);
+  assert(get_float_val(parsed.parse_result) == 123);
+});
 
 TEST_CASE(test_parse_num_2, {
   sds src = sdsnew("123.456");
-  Vector *parsed = sexp_parse(src);
-  SexpObject *obj = (SexpObject *)(parsed->data[0]);
-  assert(get_float_val(obj) == 123.456);
-})
+  ParseResult parsed = sexp_parse_expr(src);
+  assert(get_float_val(parsed.parse_result) == 123.456);
+});
 
-TEST_CASE(test_parse_str_1, {
-  sds src = sdsnew("\"hello, world\"");
-  Vector *parsed = sexp_parse(src);
-  SexpObject *obj = (SexpObject *)parsed->data[0];
-  assert(strcmp(get_string_val(obj), "hello, world") == 0);
-})
+TEST_CASE(test_parse_symbol_1, {
+  sds src = sdsnew("abc");
+  ParseResult parsed = sexp_parse_expr(src);
+  assert(sdscmp(get_symbol_val(parsed.parse_result), src) == 0);
+});
 
-TEST_CASE(test_parse_arr_1, {
-  sds src = sdsnew("(hello)");
-  Vector *parsed = sexp_parse(src);
-  SexpObject *obj = (SexpObject *)parsed->data[0];
-  Vector *expected_v = new_vec();
-  vec_push(expected_v, new_SexpObject_string(sdsnew("hello")));
-  SexpObject *expected = new_SexpObject_array(expected_v);
-  assert(equal_SexpObjects(obj, expected));
+TEST_CASE(test_parse_symbol_2, {
+  sds src = sdsnew("$abc#");
+  ParseResult parsed = sexp_parse_expr(src);
+  assert(sdscmp(get_symbol_val(parsed.parse_result), src) == 0);
+});
+
+TEST_CASE(test_parse_string_1, {
+  sds src = sdsnew("\"abc\"");
+  ParseResult parsed = sexp_parse_expr(src);
+  assert(strcmp(get_string_val(parsed.parse_result), "abc") == 0);
+});
+
+TEST_CASE(test_parse_string_2, {
+  sds src = sdsnew("\"\"");
+  ParseResult parsed = sexp_parse_expr(src);
+  assert(strcmp(get_string_val(parsed.parse_result), "") == 0);
+});
+
+TEST_CASE(test_parse_list_1, {
+  sds src = sdsnew("(1 2 3)");
+  ParseResult parsed = sexp_parse_expr(src);
+  Vector *v = new_vec();
+  vec_push(v, new_SexpObject_float(1));
+  vec_push(v, new_SexpObject_float(2));
+  vec_push(v, new_SexpObject_float(3));
+  SexpObject *eobj = new_SexpObject_list(v);
+  assert(equal_SexpObjects(parsed.parse_result, eobj));
+});
+
+TEST_CASE(test_parse_list_2, {
+  sds src = sdsnew("(hello \"world\")");
+  ParseResult parsed = sexp_parse_expr(src);
+  Vector *v = new_vec();
+  vec_push(v, new_SexpObject_symbol(sdsnew("hello")));
+  vec_push(v, new_SexpObject_string(sdsnew("world")));
+  SexpObject *eobj = new_SexpObject_list(v);
+  assert(equal_SexpObjects(parsed.parse_result, eobj));
+});
+
+TEST_CASE(test_parse_quote_1, {
+  sds src = sdsnew("'(1 2 3)");
+  ParseResult parsed = sexp_parse_expr(src);
+  Vector *v = new_vec();
+  vec_push(v, new_SexpObject_float(1));
+  vec_push(v, new_SexpObject_float(2));
+  vec_push(v, new_SexpObject_float(3));
+  SexpObject *eobj = new_SexpObject_list(v);
+  assert(!equal_SexpObjects(parsed.parse_result, eobj));
+  assert(equal_SexpObjects(parsed.parse_result, new_SexpObject_object(eobj)));
 })
 
 void sexp_test(void) {
   test_parse_num_1();
   test_parse_num_2();
-  test_parse_str_1();
-  test_parse_arr_1();
+  test_parse_symbol_1();
+  test_parse_symbol_2();
+  test_parse_string_1();
+  test_parse_string_2();
+  test_parse_list_1();
+  test_parse_list_2();
+  test_parse_quote_1();
 
   printf("[sexp_test] All of tests are passed\n");
 }
