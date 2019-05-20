@@ -12,7 +12,7 @@ static sds int_show(void *val) {
   return sdscatprintf(sdsempty(), "%ld", (intptr_t)val);
 }
 
-static void int_free(void *_) {}
+static void int_free(void *_ __attribute__((unused))) {}
 
 static int data[] = {
     2, 3, 4, 1, 1, 4, 2, 1, 5, 6, 3, 2, 3, 4, 2, 3, 7, 5, 6, 7, 5, 1, 1, 4,
