@@ -17,4 +17,8 @@ double parse_double(sds);
 GenParseNumberProt(int);
 GenParseNumberProt(size_t);
 
+#include "vector.h"
+
+sds vecstrjoin(Vector *strs, sds sep);
+
 #endif
