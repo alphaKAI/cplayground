@@ -10,6 +10,7 @@ enum {
   symbol_ty,
   list_ty,
   object_ty,
+  quote_ty,
 };
 
 typedef struct SexpObject {
@@ -22,6 +23,7 @@ typedef struct SexpObject {
     sds symbol_val;
     Vector *list_val;
     struct SexpObject *object_val;
+    struct SexpObject *quote_val;
   };
 } SexpObject;
 
@@ -36,6 +38,7 @@ GenSexpObjectConstructorProtWithName(sds, string);
 GenSexpObjectConstructorProtWithName(sds, symbol);
 GenSexpObjectConstructorProtWithName(Vector *, list);
 GenSexpObjectConstructorProtWithName(SexpObject *, object);
+GenSexpObjectConstructorProtWithName(SexpObject *, quote);
 
 #define GenGetterOfSexpObjectProtWithName(T, Name)                             \
   T get_##Name##_val(SexpObject *obj);
@@ -46,6 +49,7 @@ GenGetterOfSexpObjectProtWithName(sds, string);
 GenGetterOfSexpObjectProtWithName(sds, symbol);
 GenGetterOfSexpObjectProtWithName(Vector *, list);
 GenGetterOfSexpObjectProtWithName(SexpObject *, object);
+GenGetterOfSexpObjectProtWithName(SexpObject *, quote);
 
 bool equal_SexpObjects(SexpObject *lhs, SexpObject *rhs);
 
@@ -55,6 +59,7 @@ typedef struct {
 } ParseResult;
 
 ParseResult sexp_parse_expr(sds code);
+Vector *sexp_parse(sds code);
 
 sds show_sexp_object(SexpObject *obj);
 #endif
