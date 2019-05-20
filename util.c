@@ -41,7 +41,7 @@ double parse_double(sds str) {
   double neg = false;
   size_t cursor = 0;
 
-  if (sdslen(str) == 0) {
+  if (strlen(str) == 0) {
     return ret; // ret == 0
   }
 
@@ -50,7 +50,7 @@ double parse_double(sds str) {
     cursor++;
   }
 
-  for (; cursor < sdslen(str) && str[cursor] != '.'; cursor++) {
+  for (; cursor < strlen(str) && str[cursor] != '.'; cursor++) {
     vec_push(d, INT_TO_VoPTR(str[cursor]));
   }
 
@@ -61,9 +61,9 @@ double parse_double(sds str) {
     ret += v;
   }
 
-  if (cursor != sdslen(str) - 1) {
+  if (cursor != strlen(str) - 1) {
     cursor += 1; // skip dot
-    for (; cursor < sdslen(str); cursor++) {
+    for (; cursor < strlen(str); cursor++) {
       vec_push(f, (void *)(intptr_t)str[cursor]);
     }
 
@@ -116,3 +116,7 @@ double parse_double(sds str) {
 
 GenParseNumber(int);
 GenParseNumber(size_t);
+
+sds vecstrjoin(Vector *strs, sds sep) {
+  return sdsjoin((char **)strs->data, strs->len, sep);
+}
