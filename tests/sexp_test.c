@@ -27,7 +27,7 @@ TEST_CASE(test_parse_str_1, {
   assert(strcmp(get_string_val(obj), "hello, world") == 0);
 })
 
-TEST_CASE(test_parse_str_2, {
+TEST_CASE(test_parse_arr_1, {
   sds src = sdsnew("(hello)");
   Vector *parsed = sexp_parse(src);
   SexpObject *obj = (SexpObject *)parsed->data[0];
@@ -41,7 +41,7 @@ void sexp_test(void) {
   test_parse_num_1();
   test_parse_num_2();
   test_parse_str_1();
-  test_parse_str_2();
+  test_parse_arr_1();
 
   printf("[sexp_test] All of tests are passed\n");
 }
