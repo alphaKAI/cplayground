@@ -33,6 +33,8 @@ SexpObject *new_SexpObject_string(sds);
 SexpObject *new_SexpObject_array(Vector *);
 SexpObject *new_SexpObject_object(SexpObject *);
 
+bool equal_SexpObjects(SexpObject *lhs, SexpObject *rhs);
+
 Vector *sexp_parse(sds code);
 
 int get_int_val(SexpObject *obj);

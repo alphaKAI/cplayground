@@ -8,7 +8,7 @@
 #include <stdlib.h>
 
 static size_t nextBracket(sds code) {
-  size_t index, leftCount = 1, rightCount;
+  size_t index = 0, leftCount = 1, rightCount = 0;
 
   while (leftCount != rightCount) {
     if (code[index] == '(') {
@@ -60,6 +60,50 @@ GenGetterOfSexpObjectWithName(bool, bool);
 GenGetterOfSexpObjectWithName(sds, string);
 GenGetterOfSexpObjectWithName(Vector *, array);
 GenGetterOfSexpObjectWithName(SexpObject *, object);
+
+bool equal_SexpObjects(SexpObject *lhs, SexpObject *rhs) {
+  if (lhs->ty != rhs->ty) {
+    return false;
+  }
+
+  switch (lhs->ty) {
+  case int_ty:
+    return lhs->int_val == rhs->int_val;
+  case float_ty:
+    return lhs->float_val == rhs->float_val;
+  case bool_ty:
+    return lhs->bool_val == rhs->bool_val;
+  case string_ty:
+    return sdscmp(lhs->string_val, rhs->string_val) == 0;
+  case array_ty: {
+    Vector *lv = lhs->array_val;
+    Vector *rv = rhs->array_val;
+
+    if (lv->len != rv->len) {
+      return false;
+    }
+
+    for (size_t i = 0; i < lv->len; i++) {
+      SexpObject *le = lv->data[i];
+      SexpObject *re = rv->data[i];
+
+      if (!equal_SexpObjects(le, re)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+  case object_ty: {
+    SexpObject *li = lhs->object_val;
+    SexpObject *ri = rhs->object_val;
+    return equal_SexpObjects(li, ri);
+  }
+  default:
+    fprintf(stderr, "Unknown type was given.\n");
+    exit(EXIT_FAILURE);
+  }
+}
 
 Vector *sexp_parse(sds code) {
   Vector *_out = new_vec();
