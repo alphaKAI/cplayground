@@ -21,4 +21,15 @@ GenParseNumberProt(size_t);
 
 sds vecstrjoin(Vector *strs, sds sep);
 
+size_t checked_size_sub(size_t a, size_t b);
+
+size_t checked_size_add(size_t a, size_t b);
+
+typedef struct {
+  void *data;
+  size_t size;
+} SizedData;
+
+sds readText(sds file_name);
+
 #endif

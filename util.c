@@ -1,9 +1,12 @@
 #include "cplayground.h"
 #include "sds/sds.h"
 #include <ctype.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 void *xmalloc(size_t size) {
   void *ptr = malloc(size);
@@ -120,3 +123,98 @@ GenParseNumber(size_t);
 sds vecstrjoin(Vector *strs, sds sep) {
   return sdsjoin((char **)strs->data, strs->len, sep);
 }
+
+#define min(a, b) (a < b ? a : b)
+
+size_t checkedSizeSub(size_t a, size_t b) {
+  if (a < b) {
+    fprintf(stderr, "detect underflow\n");
+    exit(EXIT_FAILURE);
+  } else {
+    return a - b;
+  }
+}
+
+size_t checkedSizeAdd(size_t a, size_t b) {
+  if (SIZE_MAX - b < a) {
+    fprintf(stderr, "detect overflow\n");
+    exit(EXIT_FAILURE);
+  } else {
+    return a + b;
+  }
+}
+
+static SizedData readImpl(sds file_path, size_t upTo) {
+  size_t minInitialAlloc = 1024 * 4;
+  size_t maxInitialAlloc = SIZE_MAX / 2;
+  size_t sizeIncrement = 1024 * 16;
+  size_t maxSlackMemoryAllowed = 1024;
+
+  int fd = open(file_path, O_RDONLY);
+  if (fd < 0) {
+    fprintf(stderr, "Failed to open file - %s\n", file_path);
+    exit(EXIT_FAILURE);
+  }
+
+  struct stat fs;
+  if (fstat(fd, &fs) < 0) {
+    fprintf(stderr, "Error fstat\n");
+    exit(EXIT_FAILURE);
+  }
+
+  const size_t initialAlloc = min(
+      upTo, (size_t)(fs.st_size ? min((size_t)fs.st_size + 1, maxInitialAlloc)
+                                : minInitialAlloc));
+
+  void *result = xmalloc(initialAlloc);
+  size_t result_len = initialAlloc;
+  size_t size = 0;
+
+  for (;;) {
+    ssize_t actual =
+        read(fd, result + size, checkedSizeSub(min(result_len, upTo), size));
+    if (actual == -1) {
+      fprintf(stderr, "Error at readImpl<file_path: %s>\n", file_path);
+      exit(EXIT_FAILURE);
+    }
+
+    if (actual == 0) {
+      break;
+    }
+    size = checkedSizeAdd(size, actual);
+    if (size >= upTo) {
+      break;
+    }
+    if (size < result_len) {
+      break;
+    }
+    const size_t newAlloc = checkedSizeAdd(size, sizeIncrement);
+
+    result = realloc(result, newAlloc);
+    result_len = newAlloc;
+  }
+
+  close(fd);
+
+  SizedData ret;
+
+  if (result_len - size >= maxSlackMemoryAllowed) {
+    ret.data = realloc(result, size);
+    ret.size = size;
+  } else {
+    ret.data = result;
+    ret.size = size;
+  }
+
+  return ret;
+}
+
+static SizedData readFileWithUpto(sds file_path, size_t upTo) {
+  return readImpl(file_path, upTo);
+}
+
+static SizedData readFile(sds file_path) {
+  return readImpl(file_path, SIZE_MAX);
+}
+
+sds readText(sds file_path) { return sdsnew(readFile(file_path).data); }

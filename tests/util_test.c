@@ -19,9 +19,19 @@ TEST_CASE(test_parse_double_2, {
   assert(v == 123.456);
 })
 
+TEST_CASE(test_read_text, {
+  sds file_name = sdsnew("util.c");
+  sds text = read_text(file_name);
+
+  printf("%s", text);
+})
+
+
+
 void util_test(void) {
   test_parse_double_1();
   test_parse_double_2();
+  test_read_text();
 
   printf("[util_test] All of tests are passed\n");
 }
