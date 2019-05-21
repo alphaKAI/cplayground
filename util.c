@@ -198,7 +198,7 @@ static SizedData readImpl(sds file_path, size_t upTo) {
 
   SizedData ret;
 
-  if (result_len - size >= maxSlackMemoryAllowed) {
+  if (checkedSizeSub(result_len, size) >= maxSlackMemoryAllowed) {
     ret.data = realloc(result, size);
     ret.size = size;
   } else {
@@ -213,4 +213,8 @@ static SizedData readFile(sds file_path) {
   return readImpl(file_path, SIZE_MAX);
 }
 
-sds readText(sds file_path) { return sdsnew(readFile(file_path).data); }
+sds readText(sds file_path) {
+  SizedData sdata = readFile(file_path);
+  ((char *)sdata.data)[sdata.size] = '\0';
+  return sdsnew((char *)sdata.data);
+}
