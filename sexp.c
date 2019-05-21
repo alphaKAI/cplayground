@@ -123,7 +123,7 @@ ParseResult parse_list(sds str) {
   size_t next_bracket_idx = next_bracket(&str[1], 1);
 
   for (; i < str_len && i < next_bracket_idx; i++) {
-    ParseResult tmp_result = sexp_parse_expr(&str[i]);
+    ParseResult tmp_result = sexp_parseExpr(&str[i]);
     vec_push(list, tmp_result.parse_result);
     i += tmp_result.read_len;
   }
@@ -163,7 +163,7 @@ ParseResult parse_number(sds str) {
 
   sds tmp = sdsempty();
   sdscpylen(tmp, &str[first], i - first);
-  double val = parse_double(tmp);
+  double val = parseDouble(tmp);
   sdsfree(tmp);
 
   result.parse_result = new_SexpObject_float(val);
@@ -209,14 +209,14 @@ ParseResult parse_string(sds str) {
 ParseResult parse_quote(sds str) {
   ParseResult result;
 
-  ParseResult expr = sexp_parse_expr(&str[1]);
+  ParseResult expr = sexp_parseExpr(&str[1]);
   result.parse_result = new_SexpObject_quote(expr.parse_result);
   result.read_len = expr.read_len;
 
   return result;
 }
 
-ParseResult sexp_parse_expr(sds code) {
+ParseResult sexp_parseExpr(sds code) {
   size_t code_len = strlen(code);
   ParseResult result;
 
@@ -277,7 +277,7 @@ Vector *sexp_parse(sds code) {
   Vector *ret = new_vec();
 
   for (size_t i = 0; i < sdslen(code); i++) {
-    ParseResult result = sexp_parse_expr(&code[i]);
+    ParseResult result = sexp_parseExpr(&code[i]);
     vec_push(ret, result.parse_result);
     i += result.read_len;
   }

@@ -58,7 +58,7 @@ typedef struct {
   size_t read_len;
 } ParseResult;
 
-ParseResult sexp_parse_expr(sds code);
+ParseResult sexp_parseExpr(sds code);
 Vector *sexp_parse(sds code);
 
 sds show_sexp_object(SexpObject *obj);

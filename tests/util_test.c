@@ -1,18 +1,18 @@
 #include "cplayground.h"
 #include "sds/sds.h"
 #include "tests.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 
-TEST_CASE(test_parse_double_1, {
+TEST_CASE(test_parseDouble_1, {
   sds str = sdsnew("123");
 
-  assert(parse_double(str) == 123);
+  assert(parseDouble(str) == 123);
 })
 
-TEST_CASE(test_parse_double_2, {
+TEST_CASE(test_parseDouble_2, {
   sds str = sdsnew("123.456");
-  double v = parse_double(str);
+  double v = parseDouble(str);
 
   printf("v: %f\n", v);
 
@@ -21,16 +21,14 @@ TEST_CASE(test_parse_double_2, {
 
 TEST_CASE(test_read_text, {
   sds file_name = sdsnew("util.c");
-  sds text = read_text(file_name);
+  sds text = readText(file_name);
 
   printf("%s", text);
 })
 
-
-
 void util_test(void) {
-  test_parse_double_1();
-  test_parse_double_2();
+  test_parseDouble_1();
+  test_parseDouble_2();
   test_read_text();
 
   printf("[util_test] All of tests are passed\n");

@@ -37,7 +37,7 @@ static double dpow(double n, size_t p) {
 
 #define ASCII_NUM_TO_INT(i) (i - '0')
 
-double parse_double(sds str) {
+double parseDouble(sds str) {
   Vector *d = new_vec();
   Vector *f = new_vec();
   double ret = 0;
@@ -207,10 +207,6 @@ static SizedData readImpl(sds file_path, size_t upTo) {
   }
 
   return ret;
-}
-
-static SizedData readFileWithUpto(sds file_path, size_t upTo) {
-  return readImpl(file_path, upTo);
 }
 
 static SizedData readFile(sds file_path) {

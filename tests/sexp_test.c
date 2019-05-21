@@ -8,43 +8,43 @@
 
 TEST_CASE(test_parse_num_1, {
   sds src = sdsnew("123");
-  ParseResult parsed = sexp_parse_expr(src);
+  ParseResult parsed = sexp_parseExpr(src);
   assert(get_float_val(parsed.parse_result) == 123);
 });
 
 TEST_CASE(test_parse_num_2, {
   sds src = sdsnew("123.456");
-  ParseResult parsed = sexp_parse_expr(src);
+  ParseResult parsed = sexp_parseExpr(src);
   assert(get_float_val(parsed.parse_result) == 123.456);
 });
 
 TEST_CASE(test_parse_symbol_1, {
   sds src = sdsnew("abc");
-  ParseResult parsed = sexp_parse_expr(src);
+  ParseResult parsed = sexp_parseExpr(src);
   assert(sdscmp(get_symbol_val(parsed.parse_result), src) == 0);
 });
 
 TEST_CASE(test_parse_symbol_2, {
   sds src = sdsnew("$abc#");
-  ParseResult parsed = sexp_parse_expr(src);
+  ParseResult parsed = sexp_parseExpr(src);
   assert(sdscmp(get_symbol_val(parsed.parse_result), src) == 0);
 });
 
 TEST_CASE(test_parse_string_1, {
   sds src = sdsnew("\"abc\"");
-  ParseResult parsed = sexp_parse_expr(src);
+  ParseResult parsed = sexp_parseExpr(src);
   assert(strcmp(get_string_val(parsed.parse_result), "abc") == 0);
 });
 
 TEST_CASE(test_parse_string_2, {
   sds src = sdsnew("\"\"");
-  ParseResult parsed = sexp_parse_expr(src);
+  ParseResult parsed = sexp_parseExpr(src);
   assert(strcmp(get_string_val(parsed.parse_result), "") == 0);
 });
 
 TEST_CASE(test_parse_list_1, {
   sds src = sdsnew("(1 2 3)");
-  ParseResult parsed = sexp_parse_expr(src);
+  ParseResult parsed = sexp_parseExpr(src);
   Vector *v = new_vec();
   vec_push(v, new_SexpObject_float(1));
   vec_push(v, new_SexpObject_float(2));
@@ -55,7 +55,7 @@ TEST_CASE(test_parse_list_1, {
 
 TEST_CASE(test_parse_list_2, {
   sds src = sdsnew("(hello \"world\")");
-  ParseResult parsed = sexp_parse_expr(src);
+  ParseResult parsed = sexp_parseExpr(src);
   Vector *v = new_vec();
   vec_push(v, new_SexpObject_symbol(sdsnew("hello")));
   vec_push(v, new_SexpObject_string(sdsnew("world")));
@@ -65,7 +65,7 @@ TEST_CASE(test_parse_list_2, {
 
 TEST_CASE(test_parse_quote_1, {
   sds src = sdsnew("'(1 2 3)");
-  ParseResult parsed = sexp_parse_expr(src);
+  ParseResult parsed = sexp_parseExpr(src);
   Vector *v = new_vec();
   vec_push(v, new_SexpObject_float(1));
   vec_push(v, new_SexpObject_float(2));

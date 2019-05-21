@@ -4,7 +4,7 @@
 
 void *xmalloc(size_t);
 void xfree(void **);
-double parse_double(sds);
+double parseDouble(sds);
 
 #define xnew(T) (xmalloc(sizeof(T)))
 
