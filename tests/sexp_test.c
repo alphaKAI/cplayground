@@ -133,6 +133,40 @@ TEST_CASE(test_parse_multi_line_2, {
   assert(equal_SexpObjects(obj, new_SexpObject_quote(eobj)));
 });
 
+TEST_CASE(test_read_config_1, {
+  sds path = sdsnew("tests/config1.sexp");
+  sds text = readText(path);
+  SexpObject *parsed = sexp_parseExpr(text).parse_result;
+  Vector *v = new_vec();
+  vec_push(v, new_SexpObject_symbol("user"));
+  vec_push(v, new_SexpObject_string("alphaKAI"));
+  SexpObject *elem = new_SexpObject_list(v);
+  Vector *t = new_vec();
+  vec_push(t, elem);
+  SexpObject *expected = new_SexpObject_list(t);
+
+  assert(equal_SexpObjects(parsed, expected));
+});
+
+TEST_CASE(test_read_config_2, {
+  sds path = sdsnew("tests/config2.sexp");
+  sds text = readText(path);
+  SexpObject *parsed = sexp_parseExpr(text).parse_result;
+  Vector *user_entry = new_vec();
+  vec_push(user_entry, new_SexpObject_symbol("user"));
+  vec_push(user_entry, new_SexpObject_string("alphaKAI"));
+  Vector *age_entry = new_vec();
+  vec_push(age_entry, new_SexpObject_symbol("age"));
+  vec_push(age_entry, new_SexpObject_float(21));
+
+  Vector *t = new_vec();
+  vec_push(t, new_SexpObject_list(user_entry));
+  vec_push(t, new_SexpObject_list(age_entry));
+  SexpObject *expected = new_SexpObject_list(t);
+
+  assert(equal_SexpObjects(parsed, expected));
+});
+
 void sexp_test(void) {
   test_parse_num_1();
   test_parse_num_2();
@@ -145,6 +179,8 @@ void sexp_test(void) {
   test_parse_quote_1();
   test_parse_multi_line_1();
   test_parse_multi_line_2();
+  test_read_config_1();
+  test_read_config_2();
 
   printf("[sexp_test] All of tests are passed\n");
 }

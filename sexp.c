@@ -58,9 +58,9 @@ bool equal_SexpObjects(SexpObject *lhs, SexpObject *rhs) {
   case bool_ty:
     return lhs->bool_val == rhs->bool_val;
   case string_ty:
-    return sdscmp(lhs->string_val, rhs->string_val) == 0;
+    return strcmp(lhs->string_val, rhs->string_val) == 0;
   case symbol_ty:
-    return sdscmp(lhs->symbol_val, rhs->symbol_val) == 0;
+    return strcmp(lhs->symbol_val, rhs->symbol_val) == 0;
   case list_ty: {
     Vector *lv = lhs->list_val;
     Vector *rv = rhs->list_val;
@@ -96,8 +96,6 @@ bool equal_SexpObjects(SexpObject *lhs, SexpObject *rhs) {
   }
 }
 
-size_t depth = 0;
-
 static size_t next_bracket(sds code, size_t left_offset) {
   size_t index = 0, left_count = left_offset, right_count = 0;
 
@@ -114,19 +112,34 @@ static size_t next_bracket(sds code, size_t left_offset) {
   return index;
 }
 
+static ParseResult new_ParseResult(void) {
+  return (ParseResult){.parse_result = NULL, .read_len = 0};
+}
+
 ParseResult parse_list(sds str) {
-  depth++;
-  ParseResult result;
+  ParseResult result = new_ParseResult();
   Vector *list = new_vec();
-  size_t str_len = strlen(str);
   size_t i = 1; // skip first paren '('
   size_t next_bracket_idx = next_bracket(&str[1], 1);
 
-  for (; i < str_len && i < next_bracket_idx; i++) {
-    ParseResult tmp_result = sexp_parseExpr(&str[i]);
-    vec_push(list, tmp_result.parse_result);
-    i += tmp_result.read_len;
+  sds contents = sdsempty();
+  sdscpylen(contents, &str[1], next_bracket_idx - 1);
+
+  size_t j = 0;
+  ParseResult tmp_result = {.parse_result = NULL};
+  for (; j < sdslen(contents);) {
+    tmp_result = sexp_parseExpr(&contents[j]);
+    if (tmp_result.parse_result != NULL) {
+      vec_push(list, tmp_result.parse_result);
+      tmp_result.parse_result = NULL;
+    }
+    j += tmp_result.read_len;
   }
+  i += j;
+  assert(str[i] == ')');
+  i++; // skip final ')'
+
+  sdsfree(contents);
 
   result.parse_result = new_SexpObject_list(list);
   result.read_len = i;
@@ -147,7 +160,7 @@ ParseResult skip_line(sds str) {
   (str[i] == '.' && i + 1 < str_len && isdigit(str[i + 1]))
 
 ParseResult parse_number(sds str) {
-  ParseResult result;
+  ParseResult result = new_ParseResult();
   size_t i = 0;
   size_t str_len = strlen(str);
   size_t first = 0;
@@ -175,7 +188,7 @@ ParseResult parse_number(sds str) {
 const char symbol_chars[] = "~!@#$%^&*-_=+:/?<>";
 
 ParseResult parse_symbol(sds str) {
-  ParseResult result;
+  ParseResult result = new_ParseResult();
   size_t str_len = strlen(str);
   size_t i = 0;
 
@@ -191,7 +204,7 @@ ParseResult parse_symbol(sds str) {
 }
 
 ParseResult parse_string(sds str) {
-  ParseResult result;
+  ParseResult result = new_ParseResult();
   size_t str_len = strlen(str);
   size_t i = 1;
 
@@ -201,29 +214,30 @@ ParseResult parse_string(sds str) {
   sds tmp = sdsempty();
   sdscpylen(tmp, &str[1], i - 1);
   result.parse_result = new_SexpObject_string(tmp);
-  result.read_len = i;
+  result.read_len = i + 1;
 
   return result;
 }
 
 ParseResult parse_quote(sds str) {
-  ParseResult result;
+  ParseResult result = new_ParseResult();
 
   ParseResult expr = sexp_parseExpr(&str[1]);
   result.parse_result = new_SexpObject_quote(expr.parse_result);
-  result.read_len = expr.read_len;
+  result.read_len = 1 + expr.read_len;
 
   return result;
 }
 
 ParseResult sexp_parseExpr(sds code) {
   size_t code_len = strlen(code);
-  ParseResult result;
-
-  for (size_t i = 0; i < code_len; i++) {
+  ParseResult result = new_ParseResult();
+  size_t i = 0;
+  for (; i < code_len;) {
     char c = code[i];
 
     if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
+      i++;
       continue;
     }
 
@@ -269,14 +283,14 @@ ParseResult sexp_parseExpr(sds code) {
     }
   }
 
-  fprintf(stderr, "Parse error\n");
-  exit(EXIT_FAILURE);
+  result.read_len = i;
+  return result;
 }
 
 Vector *sexp_parse(sds code) {
   Vector *ret = new_vec();
 
-  for (size_t i = 0; i < sdslen(code); i++) {
+  for (size_t i = 0; i < sdslen(code);) {
     ParseResult result = sexp_parseExpr(&code[i]);
     vec_push(ret, result.parse_result);
     i += result.read_len;
