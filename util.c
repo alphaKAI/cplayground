@@ -144,7 +144,7 @@ size_t checkedSizeAdd(size_t a, size_t b) {
   }
 }
 
-static SizedData readImpl(sds file_path, size_t upTo) {
+static SizedData readImpl(const sds file_path, size_t upTo) {
   size_t minInitialAlloc = 1024 * 4;
   size_t maxInitialAlloc = SIZE_MAX / 2;
   size_t sizeIncrement = 1024 * 16;
@@ -209,11 +209,11 @@ static SizedData readImpl(sds file_path, size_t upTo) {
   return ret;
 }
 
-static SizedData readFile(sds file_path) {
+static SizedData readFile(const sds file_path) {
   return readImpl(file_path, SIZE_MAX);
 }
 
-sds readText(sds file_path) {
+sds readText(const sds file_path) {
   SizedData sdata = readFile(file_path);
   ((char *)sdata.data)[sdata.size] = '\0';
   return sdsnew((char *)sdata.data);

@@ -122,12 +122,13 @@ ParseResult parse_list(sds str) {
   size_t i = 1; // skip first paren '('
   size_t next_bracket_idx = next_bracket(&str[1], 1);
 
-  sds contents = sdsempty();
-  sdscpylen(contents, &str[1], next_bracket_idx - 1);
+  char *contents = xmalloc(next_bracket_idx);
+  memcpy(contents, &str[1], next_bracket_idx - 1);
+  contents[next_bracket_idx - 1] = '\0';
 
   size_t j = 0;
   ParseResult tmp_result = {.parse_result = NULL};
-  for (; j < sdslen(contents);) {
+  for (; j < strlen(contents);) {
     tmp_result = sexp_parseExpr(&contents[j]);
     if (tmp_result.parse_result != NULL) {
       vec_push(list, tmp_result.parse_result);
@@ -139,7 +140,7 @@ ParseResult parse_list(sds str) {
   assert(str[i] == ')');
   i++; // skip final ')'
 
-  sdsfree(contents);
+  free(contents);
 
   result.parse_result = new_SexpObject_list(list);
   result.read_len = i;
@@ -290,9 +291,11 @@ ParseResult sexp_parseExpr(sds code) {
 Vector *sexp_parse(sds code) {
   Vector *ret = new_vec();
 
-  for (size_t i = 0; i < sdslen(code);) {
+  for (size_t i = 0; i < strlen(code);) {
     ParseResult result = sexp_parseExpr(&code[i]);
-    vec_push(ret, result.parse_result);
+    if (result.parse_result != NULL) {
+      vec_push(ret, result.parse_result);
+    }
     i += result.read_len;
   }
 

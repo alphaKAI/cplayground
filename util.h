@@ -30,6 +30,6 @@ typedef struct {
   size_t size;
 } SizedData;
 
-sds readText(sds file_name);
+sds readText(const sds file_name);
 
 #endif
