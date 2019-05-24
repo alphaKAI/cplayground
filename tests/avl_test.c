@@ -9,29 +9,9 @@
 #define INT_TO_VoPTR(i) ((void *)(intptr_t)i)
 #define VoPTR_TO_INT(ptr) ((int)(intptr_t)ptr)
 
-static int int_cmp(void *lhs, void *rhs) {
-  int vl = (intptr_t)lhs;
-  int vr = (intptr_t)rhs;
-
-  printf("vl: %d\n", vl);
-  printf("vr: %d\n", vr);
-
-  if (vl < vr) {
-    return -1;
-  }
-
-  if (vl == vr) {
-    return 0;
-  }
-
-  return 1;
-}
-
 static sds int_show(void *val) {
   return sdscatprintf(sdsempty(), "%ld", (intptr_t)val);
 }
-
-static void int_free(void *_ __attribute__((unused))) {}
 
 static int data[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 static size_t data_len = ARRAY_LEN(data);
