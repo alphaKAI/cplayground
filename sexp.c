@@ -140,7 +140,7 @@ ParseResult parse_list(sds str) {
   assert(str[i] == ')');
   i++; // skip final ')'
 
-  free(contents);
+  xfree(&contents);
 
   result.parse_result = new_SexpObject_list(list);
   result.read_len = i;
@@ -175,10 +175,12 @@ ParseResult parse_number(sds str) {
        i++)
     ;
 
-  sds tmp = sdsempty();
-  sdscpylen(tmp, &str[first], i - first);
+  size_t tmp_len = i - first;
+  char *tmp = xmalloc(tmp_len + 1);
+  memcpy(tmp, &str[first], tmp_len);
+  tmp[tmp_len] = '\0';
   double val = parseDouble(tmp);
-  sdsfree(tmp);
+  xfree(&tmp);
 
   result.parse_result = new_SexpObject_float(val);
   result.read_len = i;
@@ -196,7 +198,7 @@ ParseResult parse_symbol(sds str) {
   for (; i < str_len && (isalpha(str[i]) || strchr(symbol_chars, str[i])); i++)
     ;
 
-  sds tmp = sdsempty();
+  sds tmp = sdsnewlen(NULL, i);
   sdscpylen(tmp, str, i);
   result.parse_result = new_SexpObject_symbol(tmp);
   result.read_len = i;
@@ -212,7 +214,7 @@ ParseResult parse_string(sds str) {
   for (; i < str_len && str[i] != '\"'; i++)
     ;
 
-  sds tmp = sdsempty();
+  sds tmp = sdsnewlen(NULL, i - 1);
   sdscpylen(tmp, &str[1], i - 1);
   result.parse_result = new_SexpObject_string(tmp);
   result.read_len = i + 1;
