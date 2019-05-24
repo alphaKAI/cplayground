@@ -26,8 +26,13 @@
 //////////////      Map    ///////////////
 #include "map.h"
 
-
 //////////////     Sexp    ///////////////
 #include "sexp.h"
+
+/////////////       GC    ///////////////
+#include "gc.h"
+
+/////////////  minilisp   ///////////////
+#include "minilisp.h"
 
 #endif

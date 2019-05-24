@@ -1,7 +1,7 @@
 .PHONY: all test clean
 
 CC := cc
-CFLAGS := -Wextra -Wall -g 
+CFLAGS := -Wextra -Wall -g -lgc
 
 TARGET = cplayground
 SRCS = \
