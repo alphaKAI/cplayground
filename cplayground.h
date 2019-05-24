@@ -17,6 +17,9 @@
 ///////////////   QUEUE    ///////////////
 #include "queue.h"
 
+///////////////   STACK    ///////////////
+#include "stack.h"
+
 /////////////// FUNCTIONAL ///////////////
 #include "functional.h"
 

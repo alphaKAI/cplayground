@@ -13,8 +13,9 @@ typedef struct {
   { .tester_name = #TESTER_NAME, .tester_func = TESTER_NAME##_test }
 
 TESTER testers[] = {
-    TESTER_ENTRY(binarytree), TESTER_ENTRY(queue), TESTER_ENTRY(functional),
-    TESTER_ENTRY(avl),        TESTER_ENTRY(util),  TESTER_ENTRY(sexp),
+    TESTER_ENTRY(binarytree), TESTER_ENTRY(queue), TESTER_ENTRY(stack),
+    TESTER_ENTRY(functional), TESTER_ENTRY(avl),   TESTER_ENTRY(util),
+    TESTER_ENTRY(sexp),
 };
 
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
