@@ -20,7 +20,7 @@ static size_t data_len = ARRAY_LEN(data);
 
 sds str_show(void *ptr) { return (sds)ptr; }
 
-static void test_basic(void) {
+TEST_CASE(test_basic, {
   AVLTree *tree = new_AVLTree();
   sds sdata[9];
   sdata[0] = sdsnew("a");
@@ -52,7 +52,7 @@ static void test_basic(void) {
   Vector *values = avl_values(tree);
   VecForeach(values, elem, { printf("%d ", VoPTR_TO_INT(elem)); });
   printf("\n");
-}
+});
 
 void avl_test(void) {
   test_basic();
