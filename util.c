@@ -17,7 +17,7 @@ void *xmalloc(size_t size) {
   return ptr;
 }
 
-void xfree(void **p_ptr) {
+void xfreeImpl(void **p_ptr) {
   if (p_ptr == NULL || *p_ptr == NULL) {
     fprintf(stderr, "Given pointer is NULL");
     exit(EXIT_FAILURE);

@@ -3,7 +3,8 @@
 #include "sds/sds.h"
 
 void *xmalloc(size_t);
-void xfree(void **);
+#define xfree(ptr_p) (xfreeImpl((void **)ptr_p))
+void xfreeImpl(void **);
 double parseDouble(sds);
 
 #define xnew(T) (xmalloc(sizeof(T)))
