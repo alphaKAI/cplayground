@@ -8,6 +8,21 @@
 #define INT_TO_VoPTR(i) ((void *)(intptr_t)i)
 #define VoPTR_TO_INT(ptr) ((int)(intptr_t)ptr)
 
+static int int_cmp(void *lhs, void *rhs) {
+  int vl = (intptr_t)lhs;
+  int vr = (intptr_t)rhs;
+
+  if (vl < vr) {
+    return -1;
+  }
+
+  if (vl == vr) {
+    return 0;
+  }
+
+  return 1;
+}
+
 static sds int_show(void *val) {
   return sdscatprintf(sdsempty(), "%ld", (intptr_t)val);
 }
@@ -23,28 +38,20 @@ static int data[] = {
     5, 6, 3, 2, 3, 4, 6, 2, 3, 5, 4, 2, 3, 2, 3, 4, 1, 1, 4, 2, 1, 5, 6, 3,
     2, 3, 4, 6, 2, 3, 5, 4, 2, 3, 2, 3, 4, 1, 1, 4, 2, 1, 5, 6, 3, 2, 3, 4,
 };
+static size_t data_len = ARRAY_LEN(data);
 
 // TODO: Improve test
 
 TEST_CASE(test_basic, {
-  size_t data_len = ARRAY_LEN(data);
-
-  Queue *queue = new_Queue(sizeof(int));
+  BinaryTree *root = new_BinaryTree(INT_TO_VoPTR(1));
 
   for (size_t i = 0; i < data_len; i++) {
-    printf("QUEUE: ");
-    print_Queue(queue, int_show);
-    enqueue_Queue(queue, INT_TO_VoPTR(data[i]));
+    insert(root, INT_TO_VoPTR(data[i]), int_cmp);
   }
 
-  printf("QUEUE: ");
-  print_Queue(queue, int_show);
+  printf("%s\n", stringify(root, int_show));
 
-  for (size_t i = 0; i < CLEANUP_THRESHOLD + 2; i++) {
-    dequeue_Queue(queue, int_free);
-  }
-
-  free_Queue(&queue, int_free);
+  free_BinaryTree(root, int_free);
 })
 
 void binarytree_test(void) {
