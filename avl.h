@@ -45,4 +45,7 @@ void print_node(AVLNode *node, size_t depth, ELEM_PRINTER key_printer,
 void print_tree(AVLTree *tree, ELEM_PRINTER key_printer,
                 ELEM_PRINTER value_printer);
 
+Vector *avl_values(AVLTree *tree);
+Vector *avl_keys(AVLTree *tree);
+
 #endif

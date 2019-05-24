@@ -9,6 +9,8 @@ AVLNode *new_AVLNode(void *key, void *value) {
   this->value = value;
   this->height = 1;
   this->size = 1;
+  this->left = NULL;
+  this->right = NULL;
   return this;
 }
 
@@ -129,11 +131,11 @@ void avl_insert(AVLTree *tree, void *key, void *value, ELEM_COMPARE compare) {
   tree->root = insert_impl(tree->root, new_AVLNode(key, value), compare);
 }
 
-static sds string_rep(sds s, size_t n) {
-  sds ret = sdsempty();
+static sds string_rep(char *s, size_t n) {
+  sds ret = sdsnewlen(NULL, sdslen(s) * n);
 
   for (size_t i = 0; i < n; i++) {
-    sdscat(ret, s);
+    ret = sdscat(ret, s);
   }
 
   return ret;
@@ -151,5 +153,42 @@ void print_node(AVLNode *node, size_t depth, ELEM_PRINTER key_printer,
 
 void print_tree(AVLTree *tree, ELEM_PRINTER key_printer,
                 ELEM_PRINTER value_printer) {
+  if (tree == NULL) {
+    printf("TREE IS NULL\n");
+  } else {
+    printf("TREE IS NOT NULL, addr: %p\n", tree);
+  }
   print_node(tree->root, 0, key_printer, value_printer);
+}
+
+static void collect_values(AVLNode *node, Vector *values) {
+  if (node != NULL) {
+    vec_push(values, node->value);
+    collect_values(node->left, values);
+    collect_values(node->right, values);
+  }
+}
+
+Vector *avl_values(AVLTree *tree) {
+  Vector *values = new_vec();
+
+  collect_values(tree->root, values);
+
+  return values;
+}
+
+static void collect_keys(AVLNode *node, Vector *keys) {
+  if (node != NULL) {
+    vec_push(keys, node->key);
+    collect_keys(node->left, keys);
+    collect_keys(node->right, keys);
+  }
+}
+
+Vector *avl_keys(AVLTree *tree) {
+  Vector *keys = new_vec();
+
+  collect_keys(tree->root, keys);
+
+  return keys;
 }
