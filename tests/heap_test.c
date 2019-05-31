@@ -21,9 +21,9 @@ static int int_cmp(void *lhs, void *rhs) {
   return -1;
 }
 
-static void basic_test(void) {
+int datas[] = {11, 5, 8, 3, 4, 15};
+TEST_CASE(basic_test, {
   BinaryHeap *heap = new_BinaryHeap(int_cmp);
-  int datas[] = {11, 5, 8, 3, 4, 15};
 
   for (size_t i = 0; i < ARRAY_LEN(datas); i++) {
     heap_insert(heap, INT_TO_VoPTR(datas[i]));
@@ -34,7 +34,7 @@ static void basic_test(void) {
   for (size_t i = 0; i < ARRAY_LEN(datas); i++) {
     printf("-> %d\n", VoPTR_TO_INT(heap_pop(heap)));
   }
-}
+});
 
 void heap_test(void) {
   basic_test();

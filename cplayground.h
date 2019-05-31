@@ -41,4 +41,7 @@
 ////////////  BinaryHeap  ///////////////
 #include "binaryheap.h"
 
+//////////// PriorityQueue ///////////////
+#include "priorityqueue.h"
+
 #endif
