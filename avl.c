@@ -14,9 +14,10 @@ AVLNode *new_AVLNode(void *key, void *value) {
   return this;
 }
 
-AVLTree *new_AVLTree() {
+AVLTree *new_AVLTree(ELEM_COMPARE compare) {
   AVLTree *this = xmalloc(sizeof(AVLTree));
   this->root = NULL;
+  this->compare = compare;
   return this;
 }
 
@@ -36,12 +37,12 @@ static void *find_impl(AVLNode *t, void *key, ELEM_COMPARE compare) {
   }
 }
 
-bool avl_exists(AVLTree *tree, void *key, ELEM_COMPARE compare) {
-  return find_impl(tree->root, key, compare) != NULL;
+bool avl_exists(AVLTree *tree, void *key) {
+  return find_impl(tree->root, key, tree->compare) != NULL;
 }
 
-void *avl_find(AVLTree *tree, void *key, ELEM_COMPARE compare) {
-  return find_impl(tree->root, key, compare);
+void *avl_find(AVLTree *tree, void *key) {
+  return find_impl(tree->root, key, tree->compare);
 }
 
 static int int_max(int a, int b) { return a > b ? a : b; }
@@ -125,8 +126,8 @@ static AVLNode *insert_impl(AVLNode *t, AVLNode *x, ELEM_COMPARE compare) {
   return balance(t, compare);
 }
 
-void avl_insert(AVLTree *tree, void *key, void *value, ELEM_COMPARE compare) {
-  tree->root = insert_impl(tree->root, new_AVLNode(key, value), compare);
+void avl_insert(AVLTree *tree, void *key, void *value) {
+  tree->root = insert_impl(tree->root, new_AVLNode(key, value), tree->compare);
 }
 
 static AVLNode *move_down(AVLNode *t, AVLNode *rhs, ELEM_COMPARE compare) {
@@ -158,8 +159,8 @@ static AVLNode *delete_impl(AVLNode *t, void *key, ELEM_COMPARE compare) {
   }
 }
 
-void avl_delete(AVLTree *tree, void *key, ELEM_COMPARE compare) {
-  tree->root = delete_impl(tree->root, key, compare);
+void avl_delete(AVLTree *tree, void *key) {
+  tree->root = delete_impl(tree->root, key, tree->compare);
 }
 
 static sds string_rep(char *s, size_t n) {

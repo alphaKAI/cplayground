@@ -19,18 +19,19 @@ AVLNode *new_AVLNode(void *key, void *value);
 
 typedef struct {
   AVLNode *root;
+  ELEM_COMPARE compare;
 } AVLTree;
 
-AVLTree *new_AVLTree();
+AVLTree *new_AVLTree(ELEM_COMPARE compare);
 
 typedef int (*ELEM_COMPARE)(void *, void *);
 
-bool avl_exists(AVLTree *tree, void *key, ELEM_COMPARE compare);
+bool avl_exists(AVLTree *tree, void *key);
 
-void *avl_find(AVLTree *tree, void *key, ELEM_COMPARE compare);
+void *avl_find(AVLTree *tree, void *key);
 
-void avl_insert(AVLTree *tree, void *key, void *value, ELEM_COMPARE compare);
-void avl_delete(AVLTree *tree, void *key, ELEM_COMPARE compare);
+void avl_insert(AVLTree *tree, void *key, void *value);
+void avl_delete(AVLTree *tree, void *key);
 
 #define sz(t) (t ? t->size : 0)
 #define ht(t) (t ? t->height : 0)

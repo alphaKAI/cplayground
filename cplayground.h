@@ -38,4 +38,7 @@
 /////////////  minilisp   ///////////////
 #include "minilisp.h"
 
+////////////  BinaryHeap  ///////////////
+#include "binaryheap.h"
+
 #endif

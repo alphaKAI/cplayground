@@ -38,7 +38,7 @@ int mstrcmp(void *lhs, void *rhs) {
 }
 
 TEST_CASE(test_basic, {
-  AVLTree *tree = new_AVLTree();
+  AVLTree *tree = new_AVLTree(mstrcmp);
   sds sdata[9];
   sdata[0] = sdsnew("a");
   sdata[1] = sdsnew("b");
@@ -55,7 +55,7 @@ TEST_CASE(test_basic, {
     int v = k * k;
 
     printf("<insert> k: %d, v: %d\n", k, v);
-    avl_insert(tree, sdata[i], INT_TO_VoPTR(v), (ELEM_COMPARE)&mstrcmp);
+    avl_insert(tree, sdata[i], INT_TO_VoPTR(v));
     avl_print_tree(tree, (ELEM_PRINTER)&str_show, (ELEM_PRINTER)&int_show);
   }
 
@@ -72,7 +72,7 @@ TEST_CASE(test_basic, {
 });
 
 TEST_CASE(test_delete, {
-  AVLTree *tree = new_AVLTree();
+  AVLTree *tree = new_AVLTree(mstrcmp);
   sds sdata[9];
   sdata[0] = sdsnew("a");
   sdata[1] = sdsnew("b");
@@ -89,7 +89,7 @@ TEST_CASE(test_delete, {
 
     printf("-------------------------------------------------------------\n");
     printf("<insert> k: %s, v: %d\n", sdata[i], v);
-    avl_insert(tree, sdata[i], INT_TO_VoPTR(v), mstrcmp);
+    avl_insert(tree, sdata[i], INT_TO_VoPTR(v));
     avl_print_tree(tree, str_show, int_show);
   }
 
@@ -109,7 +109,7 @@ TEST_CASE(test_delete, {
     if ((i & 1) == 0) {
       printf("-------------------------------------------------------------\n");
       printf("<delete> k: %s\n", sdata[i]);
-      avl_delete(tree, sdata[i], mstrcmp);
+      avl_delete(tree, sdata[i]);
       avl_print_tree(tree, str_show, int_show);
     }
   }
