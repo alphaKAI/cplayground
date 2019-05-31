@@ -2,6 +2,10 @@
 #define __UTIL_HEADER_INCLUDED__
 #include "sds/sds.h"
 
+typedef void (*ELEM_DESTRUCTOR)(void *);
+typedef int (*ELEM_COMPARE)(void *, void *);
+typedef char *(*ELEM_PRINTER)(void *);
+
 void *xmalloc(size_t);
 #define xfree(ptr_p) (xfreeImpl((void **)ptr_p))
 void xfreeImpl(void **);

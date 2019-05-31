@@ -115,9 +115,7 @@ static AVLNode *insert_impl(AVLNode *t, AVLNode *x, ELEM_COMPARE compare) {
 
   int comp_result = compare(x->key, t->key);
 
-  if (comp_result == 0) {
-    t->value = x->value;
-  } else if (comp_result == -1) {
+  if (comp_result <= 0) {
     t->left = insert_impl(t->left, x, compare);
   } else {
     t->right = insert_impl(t->right, x, compare);
@@ -131,6 +129,39 @@ void avl_insert(AVLTree *tree, void *key, void *value, ELEM_COMPARE compare) {
   tree->root = insert_impl(tree->root, new_AVLNode(key, value), compare);
 }
 
+static AVLNode *move_down(AVLNode *t, AVLNode *rhs, ELEM_COMPARE compare) {
+  if (t == NULL) {
+    return rhs;
+  }
+  t->right = move_down(t->right, rhs, compare);
+  return balance(t, compare);
+}
+
+static AVLNode *delete_impl(AVLNode *t, void *key, ELEM_COMPARE compare) {
+  if (t == NULL) {
+    return NULL;
+  }
+
+  int comp_result = compare(key, t->key);
+
+  if (comp_result == 0) {
+    return move_down(t->left, t->right, compare);
+  } else {
+    if (comp_result == -1) {
+      t->left = delete_impl(t->left, key, compare);
+    } else {
+      t->right = delete_impl(t->right, key, compare);
+    }
+
+    t->size -= 1;
+    return balance(t, compare);
+  }
+}
+
+void avl_delete(AVLTree *tree, void *key, ELEM_COMPARE compare) {
+  tree->root = delete_impl(tree->root, key, compare);
+}
+
 static sds string_rep(char *s, size_t n) {
   sds ret = sdsnewlen(NULL, sdslen(s) * n);
 
@@ -141,24 +172,19 @@ static sds string_rep(char *s, size_t n) {
   return ret;
 }
 
-void print_node(AVLNode *node, size_t depth, ELEM_PRINTER key_printer,
-                ELEM_PRINTER value_printer) {
+void avl_print_node(AVLNode *node, size_t depth, ELEM_PRINTER key_printer,
+                    ELEM_PRINTER value_printer) {
   if (node != NULL) {
-    print_node(node->left, depth + 1, key_printer, value_printer);
+    avl_print_node(node->left, depth + 1, key_printer, value_printer);
     printf("%s <%s:%s>\n", string_rep("    ", depth), key_printer(node->key),
            value_printer(node->value));
-    print_node(node->right, depth + 1, key_printer, value_printer);
+    avl_print_node(node->right, depth + 1, key_printer, value_printer);
   }
 }
 
-void print_tree(AVLTree *tree, ELEM_PRINTER key_printer,
-                ELEM_PRINTER value_printer) {
-  if (tree == NULL) {
-    printf("TREE IS NULL\n");
-  } else {
-    printf("TREE IS NOT NULL, addr: %p\n", tree);
-  }
-  print_node(tree->root, 0, key_printer, value_printer);
+void avl_print_tree(AVLTree *tree, ELEM_PRINTER key_printer,
+                    ELEM_PRINTER value_printer) {
+  avl_print_node(tree->root, 0, key_printer, value_printer);
 }
 
 static void collect_values(AVLNode *node, Vector *values) {
