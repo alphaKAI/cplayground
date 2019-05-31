@@ -8,9 +8,14 @@ This is a repository of my tiny scrapped codes in C.
 - AVL Tree
 - Binary Search Tree
 - Queue
+- Stack
 - Vector
 - Functional pipe
 - S-Expression Parser
+- Binary Heap
+- Priority Queue
+- Dijkstra
+
 
 ## License
 These codes are licensed under the MIT License.  
