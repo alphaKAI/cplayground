@@ -2,13 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static size_t CLEANUPED_FRONT;
-
-Queue *new_Queue(size_t elem_size) {
+Queue *new_Queue(void) {
   Queue *queue = xnew(Queue);
-  queue->elem_size = elem_size;
-  queue->capacity = DEFAULT_CAPACITY;
-  queue->data = new_vec_with(queue->capacity * queue->elem_size);
+  queue->data = new_vec();
   queue->elem_count = 0;
   queue->head = 0;
   queue->tail = 0;
@@ -37,26 +33,14 @@ void enqueue_Queue(Queue *queue, void *val) {
   vec_push(queue->data, val);
 }
 
-void *dequeue_Queue(Queue *queue, Q_DATA_FREE free_func) {
+void *dequeue_Queue(Queue *queue) {
   if (queue->elem_count == 0) {
     fprintf(stderr, "Can't dequeue from empty queue\n");
     exit(EXIT_FAILURE);
   }
 
   queue->elem_count--;
-
-  bool cleanup_flag = CLEANUP_THRESHOLD < queue->head - CLEANUPED_FRONT;
-
-  void *ret = vec_get(queue->data, queue->head++);
-  if (cleanup_flag) {
-    for (size_t i = CLEANUP_THRESHOLD; i < queue->head; i++) {
-      free_func(vec_get(queue->data, i));
-    }
-
-    CLEANUPED_FRONT = queue->head;
-  }
-
-  return ret;
+  return vec_get(queue->data, queue->head++);
 }
 
 void print_Queue(Queue *queue, Q_DATA_SHOW show) {

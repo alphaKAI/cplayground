@@ -29,7 +29,7 @@ static int data[] = {
 TEST_CASE(test_basic, {
   size_t data_len = ARRAY_LEN(data);
 
-  Queue *queue = new_Queue(sizeof(int));
+  Queue *queue = new_Queue();
 
   for (size_t i = 0; i < data_len; i++) {
     printf("QUEUE: ");
@@ -40,8 +40,8 @@ TEST_CASE(test_basic, {
   printf("QUEUE: ");
   print_Queue(queue, int_show);
 
-  for (size_t i = 0; i < CLEANUP_THRESHOLD + 2; i++) {
-    dequeue_Queue(queue, int_free);
+  for (size_t i = 0; i < data_len - 2; i++) {
+    dequeue_Queue(queue);
   }
 
   free_Queue(&queue, int_free);
