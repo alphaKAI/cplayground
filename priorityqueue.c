@@ -1,11 +1,8 @@
 #include "cplayground.h"
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-typedef struct {
-  BinaryHeap *heap;
-} PriorityQueue;
 
 PriorityQueue *new_PriorityQueue(ELEM_COMPARE compare) {
   PriorityQueue *pqueue = xmalloc(sizeof(PriorityQueue));
@@ -18,3 +15,5 @@ void pqueue_push(PriorityQueue *pqueue, void *elem) {
 }
 
 void *pqueue_pop(PriorityQueue *pqueue) { return heap_pop(pqueue->heap); }
+
+bool pqueue_empty(PriorityQueue *pqueue) { return heap_empty(pqueue->heap); }

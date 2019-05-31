@@ -44,4 +44,6 @@
 //////////// PriorityQueue ///////////////
 #include "priorityqueue.h"
 
+////////////   Dijkstra   ///////////////
+#include "dijkstra.h"
 #endif

@@ -12,4 +12,5 @@ BinaryHeap *new_BinaryHeap(ELEM_COMPARE compare);
 void heap_insert(BinaryHeap *heap, void *val);
 void *heap_pop(BinaryHeap *heap);
 void print_heap(BinaryHeap *heap, ELEM_PRINTER show);
+bool heap_empty(BinaryHeap *heap);
 #endif

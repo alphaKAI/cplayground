@@ -57,6 +57,8 @@ void *heap_pop(BinaryHeap *heap) {
   return ret;
 }
 
+bool heap_empty(BinaryHeap *heap) { return GetHeapVec(heap)->len == 0; }
+
 void print_heap(BinaryHeap *heap, ELEM_PRINTER show) {
   size_t n = GetHeapVec(heap)->len;
   size_t i = 0;
