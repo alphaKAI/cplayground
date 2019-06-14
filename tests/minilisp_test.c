@@ -32,7 +32,7 @@ void minilisp_test_1(void) {
   VMFunction *f1 = new_VMFunction(sdsnew("f1"), f1_ins, NULL);
   vec_pushi(v_ins, OpFuncDef);
   vec_push(v_ins, new_VMValueWithFunc(f1));
-  vec_pushi(v_ins, opDumpEnv);
+  vec_pushi(v_ins, OpDumpEnv);
   vec_pushi(v_ins, OpCall);
   vec_push(v_ins, sdsnew("f1"));
   vec_pushi(v_ins, 0);
@@ -63,7 +63,7 @@ void minilisp_test_1(void) {
   VMFunction *f2 = new_VMFunction(sdsnew("f2"), f2_ins, NULL);
   vec_pushi(v_ins, OpFuncDef);
   vec_push(v_ins, new_VMValueWithFunc(f2));
-  vec_pushi(v_ins, opDumpEnv);
+  vec_pushi(v_ins, OpDumpEnv);
   vec_pushi(v_ins, OpCall);
   vec_push(v_ins, sdsnew("f2"));
   vec_pushi(v_ins, 0);
@@ -98,14 +98,16 @@ void minilisp_test_1(void) {
 
   vm_ins_dump(v_ins);
 
-  sds codes[] = {sdsnew("1"),
-                 sdsnew("true"),
-                 sdsnew("\"abc\""),
-                 sdsnew("foo"),
-                 sdsnew("(println \"Hello, world!\")"),
-                 sdsnew("'(1 2 3)"),
-                 sdsnew("(def-fun sq (x) (* x x))"),
-                 sdsnew("(== 1 1)")};
+  sds codes[] = {
+      sdsnew("1"),
+      sdsnew("true"),
+      sdsnew("\"abc\""),
+      sdsnew("foo"),
+      sdsnew("(println \"Hello, world!\")"),
+      sdsnew("'(1 2 3)"),
+      sdsnew("(def-fun sq (x) (* x x))"),
+      sdsnew("(== 1 1)"),
+      sdsnew("(if (== 1 1) (println \"1 == 1\") (println \"1 != 1 !?!?\"))")};
 
   for (size_t i = 0; i < ARRAY_LEN(codes); i++) {
     printf("--------------------------------------------------------\n");
@@ -124,7 +126,13 @@ void minilisp_test_2(void) {
 \t(def-var x 4)\n\
 \t(def-fun sq (x) (* x x))\n\
 \t(println (* x (sq 3)))\n\
-\t(println (== 1 1))");
+\t(println (== 1 1))\n\
+\t(def-fun add (x y) (+ x y))\n\
+\t(println (add 1 2))\n\
+\t(print \"x: \")\n\
+\t(println x)\n\
+\t(println (/ 9 3))\n\
+\t(if (== 1 2) (println (+ 1 (* 2 (/ 9 3)))) (println \"false\"))");
   printf("code:\n%s\n", code);
   Vector *parsed = sexp_parse(code);
   Vector *compiled = vm_compile(parsed);

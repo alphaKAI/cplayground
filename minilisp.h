@@ -29,9 +29,10 @@ enum {
   OpReturn,
   OpVarDef,
   OpGetVar,
+  OpBranch,
   OpMakeList,
   OpSetArgFrom,
-  opDumpEnv
+  OpDumpEnv
 };
 
 typedef struct {

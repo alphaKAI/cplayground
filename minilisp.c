@@ -271,6 +271,7 @@ static sds GT_STR;
 static sds GEQ_STR;
 static sds DEF_VAR_STR;
 static sds DEF_FUN_STR;
+static sds IF_STR;
 
 Vector *vm_compile_SexpObject(SexpObject *obj);
 
@@ -284,6 +285,7 @@ static inline void vm_compile_binary_fun(Opcode op, Vector *v, Vector *ret) {
 }
 
 Vector *vm_compile_SexpObject(SexpObject *obj) {
+  printf("compile SexpObject... %s\n", show_sexp_object(obj));
   Vector *ret = new_vec();
 
   switch (obj->ty) {
@@ -357,7 +359,7 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
       if (arg_names != NULL) {
         for (size_t i = 0; i < arg_names->len; i++) {
           vec_pushi(func_body, OpSetArgFrom);
-          vec_push(func_body, arg_names->data[i]);
+          vec_push(func_body, arg_names->data[arg_names->len - i - 1]);
           vec_pushi(func_body, i);
         }
       }
@@ -371,6 +373,29 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
       VMFunction *vmf = new_VMFunction(e1->symbol_val, func_body, arg_names);
       vec_pushi(ret, OpFuncDef);
       vec_push(ret, new_VMValueWithFunc(vmf));
+    } else if (sdscmp(func_name, IF_STR) == 0) { // IF
+      assert(v->len >= 3);
+      SexpObject *cond = v->data[1];
+      SexpObject *tBlock = v->data[2];
+
+      vec_append(ret, vm_compile_SexpObject(cond));
+
+      Vector *tBlock_ins = vm_compile_SexpObject(tBlock);
+
+      long long int tBlock_len = tBlock_ins->len;
+      vec_pushi(ret, OpBranch);
+      vec_pushi(ret, tBlock_len + (v->len == 4 ? 2 : 0)); // skip fBlock
+
+      vec_append(ret, tBlock_ins);
+
+      if (v->len == 4) { // exist fBlock
+        Vector *fBlock_ins = vm_compile_SexpObject(v->data[3]);
+        long long int fBlock_len = fBlock_ins->len;
+        vec_pushi(ret, OpJumpRel);
+        vec_pushi(ret, fBlock_len);
+
+        vec_append(ret, fBlock_ins);
+      }
     } else {
       size_t i = 0;
 
@@ -451,6 +476,7 @@ void vm_init(void) {
   GEQ_STR = sdsnew(">=");
   DEF_VAR_STR = sdsnew("def-var");
   DEF_FUN_STR = sdsnew("def-fun");
+  IF_STR = sdsnew("if");
 }
 
 static inline int get_builtin(sds name) {
@@ -506,7 +532,7 @@ MAIN_LOOP:
     }
     case OpDiv: {
       double r = get_float_val(pop_SexpObject_from_stack(stack));
-      double l = get_float_val((SexpObject *)pop_Stack(stack));
+      double l = get_float_val(pop_SexpObject_from_stack(stack));
       push_Stack_VValue(stack, new_SexpObject_float(l / r));
       break;
     }
@@ -623,7 +649,19 @@ MAIN_LOOP:
     case OpGetVar: {
       sds var_name = (sds)frame->v_ins->data[reg->pc++];
       VMValue *v = get_Env(frame->env, var_name);
+      printf("get! name: %s, val: %s\n", var_name, show_VMValue(v));
       push_Stack(stack, v);
+      break;
+    }
+    case OpBranch: {
+      long long int tBlock_len =
+          (long long int)(intptr_t)frame->v_ins->data[reg->pc++];
+      SexpObject *cond_result = pop_SexpObject_from_stack(stack);
+      assert(cond_result->ty == bool_ty);
+
+      if (!cond_result->bool_val) {
+        reg->pc += tBlock_len;
+      }
       break;
     }
     case OpMakeList: {
@@ -643,10 +681,12 @@ MAIN_LOOP:
       sds arg_name = (sds)frame->v_ins->data[reg->pc++];
       size_t arg_idx = (size_t)(intptr_t)frame->v_ins->data[reg->pc++];
       assert(arg_idx < frame->args->len);
+      printf("OpSetArgFrom! name: %s, data: %s\n", arg_name,
+             show_VMValue(frame->args->data[arg_idx]));
       insert_Env(frame->env, arg_name, frame->args->data[arg_idx]);
       break;
     }
-    case opDumpEnv: {
+    case OpDumpEnv: {
       Vector *keys = avl_keys(frame->env->vars);
       for (size_t i = 0; i < keys->len; i++) {
         sds key = (sds)keys->data[i];
@@ -778,7 +818,12 @@ void vm_ins_dump_impl(Vector *v_ins, size_t depth) {
       printf("OpGetVar %s\n", var_name);
       break;
     }
-    case opDumpEnv: {
+    case OpBranch: {
+      long long int tBlock_len = (long long int)(intptr_t)v_ins->data[i++];
+      printf("OpBranch %lld\n", tBlock_len);
+      break;
+    }
+    case OpDumpEnv: {
       printf("OpDumpEnv\n");
       break;
     }
