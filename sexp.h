@@ -31,6 +31,8 @@ typedef struct SexpObject {
   SexpObject *new_SexpObject_##Name(T val);
 
 SexpObject *new_SexpObject(void);
+SexpObject *dup_SexpObject(SexpObject *obj);
+void free_SexpObject(SexpObject **obj_ptr);
 
 GenSexpObjectConstructorProtWithName(double, float);
 GenSexpObjectConstructorProtWithName(bool, bool);
@@ -62,4 +64,5 @@ ParseResult sexp_parseExpr(sds code);
 Vector *sexp_parse(sds code);
 
 sds show_sexp_object(SexpObject *obj);
+sds show_sexp_object_impl(SexpObject *obj, bool display_string_dq);
 #endif

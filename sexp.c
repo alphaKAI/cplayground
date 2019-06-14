@@ -13,6 +13,91 @@ SexpObject *new_SexpObject(void) {
   return obj;
 }
 
+SexpObject *dup_SexpObject(SexpObject *obj) {
+  SexpObject *new_obj = new_SexpObject();
+  new_obj->ty = obj->ty;
+
+  switch (obj->ty) {
+  case float_ty: {
+    new_obj->float_val = obj->float_val;
+    break;
+  }
+  case bool_ty: {
+    new_obj->bool_val = obj->bool_val;
+    break;
+  }
+  case string_ty: {
+    new_obj->string_val = sdsempty();
+    sdscpy(new_obj->string_val, obj->string_val);
+    break;
+  }
+  case symbol_ty: {
+    new_obj->symbol_val = sdsempty();
+    sdscpy(new_obj->symbol_val, obj->symbol_val);
+    break;
+  }
+  case list_ty: {
+    Vector *v = obj->list_val;
+    Vector *nv = new_vec();
+    for (size_t i = 0; i < v->len; i++) {
+      vec_push(nv, dup_SexpObject((SexpObject *)v->data[i]));
+    }
+    new_obj->list_val = nv;
+    break;
+  }
+  case object_ty: {
+    new_obj->object_val = dup_SexpObject(obj->object_val);
+    break;
+  }
+  case quote_ty: {
+    new_obj->quote_val = dup_SexpObject(obj->quote_val);
+    break;
+  }
+  default:
+    fprintf(stderr, "[ERROR] invalid type SexpObject was given\n");
+    exit(EXIT_FAILURE);
+  }
+
+  return new_obj;
+}
+
+void free_SexpObject(SexpObject **obj_ptr) {
+  switch ((*obj_ptr)->ty) {
+
+  case float_ty:
+  case bool_ty:
+    break;
+  case string_ty: {
+    sdsfree((*obj_ptr)->string_val);
+    break;
+  }
+  case symbol_ty: {
+    sdsfree((*obj_ptr)->symbol_val);
+    break;
+  }
+  case list_ty: {
+    Vector *v = (*obj_ptr)->list_val;
+    for (size_t i = 0; i < v->len; i++) {
+      free_SexpObject(v->data[i]);
+    }
+    break;
+  }
+  case object_ty: {
+    free_SexpObject(&(*obj_ptr)->object_val);
+    break;
+  }
+  case quote_ty: {
+    free_SexpObject(&(*obj_ptr)->quote_val);
+    break;
+  }
+  default:
+    fprintf(stderr, "[ERROR] invalid type SexpObject was given\n");
+    exit(EXIT_FAILURE);
+  }
+
+  xfree(obj_ptr);
+}
+
 #define GenSexpObjectConstructorWithName(T, Name)                              \
   SexpObject *new_SexpObject_##Name(T val) {                                   \
     SexpObject *obj = new_SexpObject();                                        \
@@ -304,7 +389,7 @@ Vector *sexp_parse(sds code) {
   return ret;
 }
 
-sds show_sexp_object(SexpObject *obj) {
+sds show_sexp_object_impl(SexpObject *obj, bool display_string_dq) {
   sds ret = sdsempty();
 
   switch (obj->ty) {
@@ -315,10 +400,14 @@ sds show_sexp_object(SexpObject *obj) {
     ret = sdscatprintf(ret, "%s", obj->bool_val ? "true" : "false");
     break;
   case string_ty:
-    ret = sdscatprintf(ret, "\"%s\"", obj->string_val);
+    if (display_string_dq) {
+      ret = sdscatprintf(ret, "\"%s\"", obj->string_val);
+    } else {
+      ret = sdscatprintf(ret, "%s", obj->string_val);
+    }
     break;
   case symbol_ty:
-    ret = sdscatprintf(ret, "%s", obj->string_val);
+    ret = sdscatprintf(ret, "%s", obj->symbol_val);
     break;
   case list_ty: {
     Vector *elems = obj->list_val;
@@ -345,4 +434,8 @@ sds show_sexp_object(SexpObject *obj) {
   }
 
   return ret;
+}
+
+sds show_sexp_object(SexpObject *obj) {
+  return show_sexp_object_impl(obj, true);
 }
