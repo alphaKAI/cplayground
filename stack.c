@@ -1,6 +1,7 @@
 #include "cplayground.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 Stack *new_Stack() {
   Stack *stack = xmalloc(sizeof(Stack));
@@ -41,6 +42,10 @@ void *peek_Stack(Stack *stack) {
   }
 
   return stack->data->data[stack->elem_count - 1];
+}
+
+bool isempty_Stack(Stack *stack) {
+  return stack->elem_count == 0;
 }
 
 void print_Stack(Stack *stack, S_DATA_SHOW show) {
