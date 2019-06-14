@@ -24,6 +24,11 @@ typedef struct {
 
 AVLTree *new_AVLTree(ELEM_COMPARE compare);
 
+typedef void (*ELEM_FREE)(void *);
+
+void free_AVLNode(AVLNode **n_ptr, ELEM_FREE free_key, ELEM_FREE free_val);
+void free_AVLTree(AVLTree **t_ptr, ELEM_FREE free_key, ELEM_FREE free_val);
+
 typedef int (*ELEM_COMPARE)(void *, void *);
 
 bool avl_exists(AVLTree *tree, void *key);

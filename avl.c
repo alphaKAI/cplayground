@@ -14,11 +14,40 @@ AVLNode *new_AVLNode(void *key, void *value) {
   return this;
 }
 
+void free_AVLNode(AVLNode **n_ptr, ELEM_FREE free_key, ELEM_FREE free_val) {
+  if (n_ptr == NULL || *n_ptr == NULL) {
+    fprintf(stderr, "[free_AVLNode] given pointer is already freed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  free_key((*n_ptr)->key);
+  free_val((*n_ptr)->value);
+
+  if ((*n_ptr)->left != NULL) {
+    free_AVLNode(&(*n_ptr)->left, free_key, free_val);
+  }
+
+  if ((*n_ptr)->right != NULL) {
+    free_AVLNode(&(*n_ptr)->right, free_key, free_val);
+  }
+
+  free(*n_ptr);
+  *n_ptr = NULL;
+}
+
 AVLTree *new_AVLTree(ELEM_COMPARE compare) {
   AVLTree *this = xmalloc(sizeof(AVLTree));
   this->root = NULL;
   this->compare = compare;
   return this;
+}
+
+void free_AVLTree(AVLTree **t_ptr, ELEM_FREE free_key, ELEM_FREE free_val) {
+  if (t_ptr == NULL || *t_ptr == NULL) {
+    fprintf(stderr, "[free_AVLTree] given pointer is already freed\n");
+    exit(EXIT_FAILURE);
+  }
+  free_AVLNode(&(*t_ptr)->root, free_key, free_val);
 }
 
 static void *find_impl(AVLNode *t, void *key, ELEM_COMPARE compare) {
@@ -116,7 +145,9 @@ static AVLNode *insert_impl(AVLNode *t, AVLNode *x, ELEM_COMPARE compare) {
 
   int comp_result = compare(x->key, t->key);
 
-  if (comp_result <= 0) {
+  if (comp_result == 0) {
+    t->value = x->value;
+  } else if (comp_result == -1) {
     t->left = insert_impl(t->left, x, compare);
   } else {
     t->right = insert_impl(t->right, x, compare);
