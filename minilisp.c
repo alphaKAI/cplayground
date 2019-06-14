@@ -125,7 +125,6 @@ static inline VMFunction *pop_func_from_stack(Stack *stack) {
 Registers *new_Registers(void) {
   Registers *registers = xmalloc(sizeof(Registers));
   registers->pc = 0;
-  registers->fp = 0;
   return registers;
 }
 

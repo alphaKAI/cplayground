@@ -3,16 +3,8 @@
 
 #include "cplayground.h"
 
-/*
-    FRAME
-    |COPIED REGISTERS|
-    |ENV_PTR|
-    |ARGS|
-*/
-
 typedef struct {
   size_t pc;
-  uintptr_t fp;
 } Registers;
 
 enum {

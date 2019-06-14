@@ -104,7 +104,7 @@ void minilisp_test_1(void) {
                  sdsnew("foo"),
                  sdsnew("(println \"Hello, world!\")"),
                  sdsnew("'(1 2 3)"),
-                 sdsnew("(def-fun (sq x) (* x x))")};
+                 sdsnew("(def-fun sq (x) (* x x))")};
 
   for (size_t i = 0; i < ARRAY_LEN(codes); i++) {
     printf("--------------------------------------------------------\n");
@@ -129,7 +129,7 @@ void minilisp_test_2(void) {
   vm_exec(compiled);
 }
 
-void minilist_test(void) {
+void minilisp_test(void) {
   minilisp_test_1();
   minilisp_test_2();
 }
