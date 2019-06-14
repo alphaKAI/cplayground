@@ -104,7 +104,8 @@ void minilisp_test_1(void) {
                  sdsnew("foo"),
                  sdsnew("(println \"Hello, world!\")"),
                  sdsnew("'(1 2 3)"),
-                 sdsnew("(def-fun sq (x) (* x x))")};
+                 sdsnew("(def-fun sq (x) (* x x))"),
+                 sdsnew("(== 1 1)")};
 
   for (size_t i = 0; i < ARRAY_LEN(codes); i++) {
     printf("--------------------------------------------------------\n");
@@ -120,8 +121,10 @@ void minilisp_test_1(void) {
 void minilisp_test_2(void) {
   vm_init();
   sds code = sdsnew("\t(println \"Hello, world\")\n\
+\t(def-var x 4)\n\
 \t(def-fun sq (x) (* x x))\n\
-\t(println (sq 3))");
+\t(println (* x (sq 3)))\n\
+\t(println (== 1 1))");
   printf("code:\n%s\n", code);
   Vector *parsed = sexp_parse(code);
   Vector *compiled = vm_compile(parsed);

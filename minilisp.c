@@ -100,7 +100,54 @@ sds show_VMValue(VMValue *val) {
   }
 }
 
-static inline SexpObject *get_value_VMValue(VMValue *vmv) {
+int cmp_VMValue(VMValue *v1, VMValue *v2) {
+  if (v1->ty != v2->ty) {
+    return -2;
+  }
+  switch (v1->ty) {
+  case VValue: {
+    switch (v1->val->ty) {
+    case float_ty: {
+      double l = v1->val->float_val;
+      double r = v2->val->float_val;
+      if (l == r) {
+        return 0;
+      }
+      if (l < r) {
+        return -1;
+      }
+      return 1;
+    }
+    case bool_ty: {
+      bool l = v1->val->bool_val;
+      bool r = v2->val->bool_val;
+      if (l == r) {
+        return 0;
+      }
+      return -2;
+    }
+    case symbol_ty:
+      return varcmp((void *)v1->val->symbol_val, (void *)v2->val->symbol_val);
+    case string_ty:
+      return varcmp((void *)v1->val->string_val, (void *)v2->val->string_val);
+    case list_ty:
+    case object_ty:
+    case quote_ty:
+      fprintf(stderr, "unimplemented!\n");
+      exit(EXIT_FAILURE);
+    }
+
+    fprintf(stderr, "Should not reach here\n");
+    exit(EXIT_FAILURE);
+  }
+  case VFunc:
+  default:
+    fprintf(stderr, "Should not reach here\n");
+    exit(EXIT_FAILURE);
+  }
+}
+
+static inline SexpObject *get_SexpObject_VMValue(VMValue *vmv) {
   assert(vmv->ty == VValue);
   return vmv->val;
 }
@@ -110,7 +157,7 @@ static inline VMFunction *get_func_VMValue(VMValue *vmv) {
   return vmv->func;
 }
 
-static inline SexpObject *pop_value_from_stack(Stack *stack) {
+static inline SexpObject *pop_SexpObject_from_stack(Stack *stack) {
   VMValue *v = (VMValue *)pop_Stack(stack);
   assert(v->ty == VValue);
   return v->val;
@@ -216,7 +263,12 @@ static sds SUB_STR;
 static sds MUL_STR;
 static sds DIV_STR;
 static sds MOD_STR;
-// TODO: EQUAL
+static sds EQ_STR;
+static sds NEQ_STR;
+static sds LT_STR;
+static sds LEQ_STR;
+static sds GT_STR;
+static sds GEQ_STR;
 static sds DEF_VAR_STR;
 static sds DEF_FUN_STR;
 
@@ -262,6 +314,18 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
       vm_compile_binary_fun(OpDiv, v, ret);
     } else if (sdscmp(func_name, MOD_STR) == 0) { // Mod
       vm_compile_binary_fun(OpMod, v, ret);
+    } else if (sdscmp(func_name, EQ_STR) == 0) { // Eq
+      vm_compile_binary_fun(OpEq, v, ret);
+    } else if (sdscmp(func_name, NEQ_STR) == 0) { // Neq
+      vm_compile_binary_fun(OpNeq, v, ret);
+    } else if (sdscmp(func_name, LT_STR) == 0) { // Lt
+      vm_compile_binary_fun(OpLt, v, ret);
+    } else if (sdscmp(func_name, LEQ_STR) == 0) { // Leq
+      vm_compile_binary_fun(OpLeq, v, ret);
+    } else if (sdscmp(func_name, GT_STR) == 0) { // Gt
+      vm_compile_binary_fun(OpGt, v, ret);
+    } else if (sdscmp(func_name, GEQ_STR) == 0) { // Geq
+      vm_compile_binary_fun(OpGeq, v, ret);
     } else if (sdscmp(func_name, DEF_VAR_STR) == 0) { // def-var
       assert(v->len == 3);
       SexpObject *e1 = (SexpObject *)v->data[1];
@@ -379,6 +443,12 @@ void vm_init(void) {
   MUL_STR = sdsnew("*");
   DIV_STR = sdsnew("/");
   MOD_STR = sdsnew("%%");
+  EQ_STR = sdsnew("==");
+  NEQ_STR = sdsnew("!=");
+  LT_STR = sdsnew("<");
+  LEQ_STR = sdsnew("<=");
+  GT_STR = sdsnew(">");
+  GEQ_STR = sdsnew(">=");
   DEF_VAR_STR = sdsnew("def-var");
   DEF_FUN_STR = sdsnew("def-fun");
 }
@@ -417,33 +487,69 @@ MAIN_LOOP:
       push_Stack(stack, frame->v_ins->data[reg->pc++]);
       break;
     case OpAdd: {
-      double r = get_float_val(pop_value_from_stack(stack));
-      double l = get_float_val(pop_value_from_stack(stack));
+      double r = get_float_val(pop_SexpObject_from_stack(stack));
+      double l = get_float_val(pop_SexpObject_from_stack(stack));
       push_Stack_VValue(stack, new_SexpObject_float(l + r));
       break;
     }
     case OpSub: {
-      double r = get_float_val(pop_value_from_stack(stack));
-      double l = get_float_val(pop_value_from_stack(stack));
+      double r = get_float_val(pop_SexpObject_from_stack(stack));
+      double l = get_float_val(pop_SexpObject_from_stack(stack));
       push_Stack_VValue(stack, new_SexpObject_float(l - r));
       break;
     }
     case OpMul: {
-      double r = get_float_val(pop_value_from_stack(stack));
-      double l = get_float_val(pop_value_from_stack(stack));
+      double r = get_float_val(pop_SexpObject_from_stack(stack));
+      double l = get_float_val(pop_SexpObject_from_stack(stack));
       push_Stack_VValue(stack, new_SexpObject_float(l * r));
       break;
     }
     case OpDiv: {
-      double r = get_float_val(pop_value_from_stack(stack));
+      double r = get_float_val(pop_SexpObject_from_stack(stack));
       double l = get_float_val((SexpObject *)pop_Stack(stack));
       push_Stack_VValue(stack, new_SexpObject_float(l / r));
       break;
     }
     case OpMod: {
-      double r = get_float_val(pop_value_from_stack(stack));
-      double l = get_float_val(pop_value_from_stack(stack));
+      double r = get_float_val(pop_SexpObject_from_stack(stack));
+      double l = get_float_val(pop_SexpObject_from_stack(stack));
       push_Stack_VValue(stack, new_SexpObject_float(dmod(l, r)));
+      break;
+    }
+    case OpEq: {
+      VMValue *r = pop_Stack(stack);
+      VMValue *l = pop_Stack(stack);
+      push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) == 0));
+      break;
+    }
+    case OpNeq: {
+      VMValue *r = pop_Stack(stack);
+      VMValue *l = pop_Stack(stack);
+      push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) != 0));
+      break;
+    }
+    case OpLt: {
+      VMValue *r = pop_Stack(stack);
+      VMValue *l = pop_Stack(stack);
+      push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) < 0));
+      break;
+    }
+    case OpLeq: {
+      VMValue *r = pop_Stack(stack);
+      VMValue *l = pop_Stack(stack);
+      push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) <= 0));
+      break;
+    }
+    case OpGt: {
+      VMValue *r = pop_Stack(stack);
+      VMValue *l = pop_Stack(stack);
+      push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) > 0));
+      break;
+    }
+    case OpGeq: {
+      VMValue *r = pop_Stack(stack);
+      VMValue *l = pop_Stack(stack);
+      push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) >= 0));
       break;
     }
     case OpPrint: {
@@ -606,6 +712,30 @@ void vm_ins_dump_impl(Vector *v_ins, size_t depth) {
     }
     case OpMod: {
       printf("OpMod\n");
+      break;
+    }
+    case OpEq: {
+      printf("OpEq\n");
+      break;
+    }
+    case OpNeq: {
+      printf("OpNeq\n");
+      break;
+    }
+    case OpLt: {
+      printf("OpLt");
+      break;
+    }
+    case OpLeq: {
+      printf("OpLeq\n");
+      break;
+    }
+    case OpGt: {
+      printf("OpGt\n");
+      break;
+    }
+    case OpGeq: {
+      printf("OpGeq\n");
       break;
     }
     case OpPrint: {
