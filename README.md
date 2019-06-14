@@ -15,6 +15,7 @@ This is a repository of my tiny scrapped codes in C.
 - Binary Heap
 - Priority Queue
 - Dijkstra
+- minilisp Compiler & Virtual Machine
 
 
 ## License
