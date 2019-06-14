@@ -180,27 +180,41 @@ void free_Registers(Registers **registers) { xfree(registers); }
 Env *new_Env(void) {
   Env *env = xmalloc(sizeof(Env));
   env->vars = new_AVLTree(&varcmp);
+  env->parent = NULL;
+  env->copied = false;
   return env;
-}
-
-void insert_Env(Env *env, sds name, VMValue *val) {
-  avl_insert(env->vars, name, val);
-}
-
-static inline VMValue *get_Env(Env *env, sds name) {
-  return avl_find(env->vars, name);
 }
 
 static inline Vector *keys_Env(Env *env) { return avl_keys(env->vars); }
 
+static inline VMValue *get_Env(Env *env, sds name) {
+  if (env->parent == NULL) {
+    return avl_find(env->vars, name);
+  } else {
+    if (env->copied == false) {
+      return avl_find(env->parent->vars, name);
+    } else {
+      return avl_find(env->vars, name);
+    }
+  }
+}
+
+void insert_Env(Env *env, sds name, VMValue *val) {
+  if (env->parent != NULL && env->copied == false) {
+    Vector *keys = keys_Env(env->parent);
+    for (size_t i = 0; i < keys->len; i++) {
+      sds key = keys->data[i];
+      avl_insert(env->vars, key, dup_VMValue(get_Env(env->parent, key)));
+    }
+    env->copied = true;
+  }
+
+  avl_insert(env->vars, name, val);
+}
+
 Env *dup_Env(Env *env) {
   Env *new_env = new_Env();
-
-  Vector *keys = keys_Env(env);
-  for (size_t i = 0; i < keys->len; i++) {
-    sds key = keys->data[i];
-    insert_Env(new_env, key, dup_VMValue(get_Env(env, key)));
-  }
+  new_env->parent = env;
 
   return new_env;
 }
@@ -513,7 +527,7 @@ SexpObject *vm_exec(Vector *v_ins) {
 MAIN_LOOP:
   for (; reg->pc < frame->v_ins->len;) {
     Opcode op = (Opcode)frame->v_ins->data[reg->pc++];
-    printf("op: %lld, reg: %p, reg->pc: %lld\n", op, reg, reg->pc);
+    // printf("op: %lld, reg: %p, reg->pc: %lld\n", op, reg, reg->pc);
   OP_SELECT:
     switch (op) {
     case OpPop:

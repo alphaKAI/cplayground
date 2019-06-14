@@ -35,8 +35,10 @@ enum {
   OpDumpEnv
 };
 
-typedef struct {
+typedef struct Env {
   AVLTree *vars;
+  struct Env *parent;
+  bool copied;
 } Env;
 
 static inline int varcmp(void *lhs, void *rhs) {
