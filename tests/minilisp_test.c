@@ -140,7 +140,33 @@ void minilisp_test_2(void) {
   vm_exec(compiled);
 }
 
+void minilisp_test_3(void) {
+  vm_init();
+  sds code = readText("tests/hw.lsp");
+  printf("code:\n");
+  printf("%s", code);
+  Vector *parsed = sexp_parse(code);
+  Vector *compiled = vm_compile(parsed);
+  printf("compiled instructions...\n");
+  vm_ins_dump(compiled);
+  vm_exec(compiled);
+}
+
+void minilisp_test_4(void) {
+  vm_init();
+  sds code = readText("tests/fib.lsp");
+  printf("code:\n");
+  printf("%s", code);
+  Vector *parsed = sexp_parse(code);
+  Vector *compiled = vm_compile(parsed);
+  printf("compiled instructions...\n");
+  vm_ins_dump(compiled);
+  vm_exec(compiled);
+}
+
 void minilisp_test(void) {
   minilisp_test_1();
   minilisp_test_2();
+  minilisp_test_3();
+  minilisp_test_4();
 }

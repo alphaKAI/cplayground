@@ -272,6 +272,7 @@ static sds GEQ_STR;
 static sds DEF_VAR_STR;
 static sds DEF_FUN_STR;
 static sds IF_STR;
+static sds BEGIN_STR;
 
 Vector *vm_compile_SexpObject(SexpObject *obj);
 
@@ -285,7 +286,6 @@ static inline void vm_compile_binary_fun(Opcode op, Vector *v, Vector *ret) {
 }
 
 Vector *vm_compile_SexpObject(SexpObject *obj) {
-  printf("compile SexpObject... %s\n", show_sexp_object(obj));
   Vector *ret = new_vec();
 
   switch (obj->ty) {
@@ -396,6 +396,11 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
 
         vec_append(ret, fBlock_ins);
       }
+    } else if (sdscmp(func_name, BEGIN_STR) == 0) { // begin
+      assert(v->len >= 2);
+      for (size_t i = 1; i < v->len; i++) {
+        vec_append(ret, vm_compile_SexpObject(v->data[i]));
+      }
     } else {
       size_t i = 0;
 
@@ -458,6 +463,10 @@ static AVLTree *builtin_functions;
 static bool vm_initialized;
 
 void vm_init(void) {
+  if (vm_initialized) {
+    return;
+  }
+  vm_initialized = true;
   builtin_functions = new_AVLTree(&varcmp);
 
   avl_insert(builtin_functions, sdsnew("print"), (void *)(intptr_t)OpPrint);
@@ -477,6 +486,7 @@ void vm_init(void) {
   DEF_VAR_STR = sdsnew("def-var");
   DEF_FUN_STR = sdsnew("def-fun");
   IF_STR = sdsnew("if");
+  BEGIN_STR = sdsnew("begin");
 }
 
 static inline int get_builtin(sds name) {
@@ -643,13 +653,13 @@ MAIN_LOOP:
       sds var_name = (sds)frame->v_ins->data[reg->pc++];
       VMValue *v = pop_Stack(stack);
       insert_Env(frame->env, var_name, v);
-      printf("def! name: %s, val: %s\n", var_name, show_VMValue(v));
+      // printf("def! name: %s, val: %s\n", var_name, show_VMValue(v));
       break;
     }
     case OpGetVar: {
       sds var_name = (sds)frame->v_ins->data[reg->pc++];
       VMValue *v = get_Env(frame->env, var_name);
-      printf("get! name: %s, val: %s\n", var_name, show_VMValue(v));
+      // printf("get! name: %s, val: %s\n", var_name, show_VMValue(v));
       push_Stack(stack, v);
       break;
     }
@@ -681,8 +691,9 @@ MAIN_LOOP:
       sds arg_name = (sds)frame->v_ins->data[reg->pc++];
       size_t arg_idx = (size_t)(intptr_t)frame->v_ins->data[reg->pc++];
       assert(arg_idx < frame->args->len);
-      printf("OpSetArgFrom! name: %s, data: %s\n", arg_name,
-             show_VMValue(frame->args->data[arg_idx]));
+
+      // printf("OpSetArgFrom! name: %s, data: %s\n", arg_name,
+      // show_VMValue(frame->args->data[arg_idx]));
       insert_Env(frame->env, arg_name, frame->args->data[arg_idx]);
       break;
     }
