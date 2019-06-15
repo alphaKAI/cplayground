@@ -476,11 +476,20 @@ Vector *vm_compile(Vector *parsed) {
 static AVLTree *builtin_functions;
 static bool vm_initialized;
 
+#define __ENABLE_DIRECT_THREADED_CODE__
+
 void vm_init(void) {
   if (vm_initialized) {
     return;
   }
   vm_initialized = true;
+
+#ifdef __ENABLE_DIRECT_THREADED_CODE__
+  printf("[INTERNAL VM INFO] Direct Threaded Code : Enabled\n");
+#else
+  printf("[INTERNAL VM INFO] Direct Threaded Code : Disabled\n");
+#endif
+
   builtin_functions = new_AVLTree(&varcmp);
 
   avl_insert(builtin_functions, sdsnew("print"), (void *)(intptr_t)OpPrint);
@@ -511,8 +520,6 @@ static inline int get_builtin(sds name) {
     return (int)(intptr_t)avl_find(builtin_functions, name);
   }
 }
-
-#define __ENABLE_DIRECT_THREADED_CODE__
 
 #ifdef __ENABLE_DIRECT_THREADED_CODE__
 static inline void **gen_table(void **table, size_t table_len, Vector *v_ins,
