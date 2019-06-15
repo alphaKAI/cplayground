@@ -533,7 +533,6 @@ SexpObject *vm_exec(Vector *v_ins) {
   if (!vm_initialized) {
     vm_init();
   }
-  printf("v_ins : %ld\n", v_ins->len);
 
   SexpObject *ret = NULL;
   Stack *stack = new_Stack();
