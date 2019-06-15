@@ -8,8 +8,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef __USE_BOHEM_GC__
+#include <gc.h>
+#endif
+
 void *xmalloc(size_t size) {
+#ifdef __USE_BOHEM_GC__
+  void *ptr = gc_malloc(size);
+#else
   void *ptr = malloc(size);
+#endif
   if (ptr == NULL) {
     fprintf(stderr, "Failed to allocate memory\n");
     exit(EXIT_FAILURE);
@@ -18,6 +26,9 @@ void *xmalloc(size_t size) {
 }
 
 void xfreeImpl(void **p_ptr) {
+#ifdef __USE_BOHEM_GC__
+  gc_free(*p_ptr);
+#else
   if (p_ptr == NULL || *p_ptr == NULL) {
     fprintf(stderr, "Given pointer is NULL");
     exit(EXIT_FAILURE);
@@ -25,6 +36,7 @@ void xfreeImpl(void **p_ptr) {
 
   free(*p_ptr);
   *p_ptr = NULL;
+#endif
 }
 
 static double dpow(double n, size_t p) {

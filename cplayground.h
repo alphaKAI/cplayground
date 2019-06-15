@@ -1,6 +1,7 @@
 #ifndef __CPLAYGROUND_HEADER_INCLUDED__
 #define __CPLAYGROUND_HEADER_INCLUDED__
 
+#include "config.h"
 #include "sds/sds.h"
 #include <stdbool.h>
 #include <stddef.h>
