@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef __USE_BOHEM_GC__
+#ifdef __USE_BOEHM_GC__
 #include <gc.h>
 #endif
 
@@ -23,7 +23,7 @@ void vec_expand(Vector *v, size_t size) {
   if (v->len < size) {
     v->capacity = size;
     v->len = size;
-#ifdef __USE_BOHEM_GC__
+#ifdef __USE_BOEHM_GC__
     v->data = gc_realloc(v->data, sizeof(void *) * v->capacity);
 #else
     v->data = realloc(v->data, sizeof(void *) * v->capacity);
@@ -34,7 +34,7 @@ void vec_expand(Vector *v, size_t size) {
 void vec_push(Vector *v, void *elem) {
   if (v->len == v->capacity) {
     v->capacity *= 2;
-#ifdef __USE_BOHEM_GC__
+#ifdef __USE_BOEHM_GC__
     v->data = gc_realloc(v->data, sizeof(void *) * v->capacity);
 #else
     v->data = realloc(v->data, sizeof(void *) * v->capacity);

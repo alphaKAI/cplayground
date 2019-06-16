@@ -8,12 +8,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#ifdef __USE_BOHEM_GC__
+#ifdef __USE_BOEHM_GC__
 #include <gc.h>
 #endif
 
 void *xmalloc(size_t size) {
-#ifdef __USE_BOHEM_GC__
+#ifdef __USE_BOEHM_GC__
   void *ptr = gc_malloc(size);
 #else
   void *ptr = malloc(size);
@@ -26,7 +26,7 @@ void *xmalloc(size_t size) {
 }
 
 void xfreeImpl(void **p_ptr) {
-#ifdef __USE_BOHEM_GC__
+#ifdef __USE_BOEHM_GC__
   gc_free(*p_ptr);
 #else
   if (p_ptr == NULL || *p_ptr == NULL) {
