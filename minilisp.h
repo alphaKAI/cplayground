@@ -3,6 +3,8 @@
 
 #include "cplayground.h"
 
+#define __ENABLE_DIRECT_THREADED_CODE__
+
 typedef struct {
   size_t pc;
 } Registers;
@@ -67,6 +69,9 @@ typedef struct {
   sds name;
   Vector *code;
   Vector *arg_names;
+#ifdef __ENABLE_DIRECT_THREADED_CODE__
+  void **ops_ptr;
+#endif
 } VMFunction;
 
 VMFunction *new_VMFunction(sds name, Vector *code, Vector *arg_names);

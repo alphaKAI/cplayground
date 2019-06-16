@@ -245,6 +245,9 @@ VMFunction *new_VMFunction(sds name, Vector *code, Vector *arg_names) {
   func->name = name;
   func->code = code;
   func->arg_names = arg_names;
+#ifdef __ENABLE_DIRECT_THREADED_CODE__
+  func->ops_ptr = NULL;
+#endif
   return func;
 }
 
@@ -268,7 +271,7 @@ void dump_stack(Stack *stack) {
   Vector *v = stack->data;
   for (size_t i = 0; i < v->len; i++) {
     void *e = v->data[i];
-    printf("stack[%lld] %p : \n", i, e);
+    printf("stack[%ld] %p : \n", i, e);
   }
 }
 
@@ -481,6 +484,13 @@ void vm_init(void) {
     return;
   }
   vm_initialized = true;
+
+#ifdef __ENABLE_DIRECT_THREADED_CODE__
+  printf("[INTERNAL VM INFO] Direct Threaded Code : Enabled\n");
+#else
+  printf("[INTERNAL VM INFO] Direct Threaded Code : Disabled\n");
+#endif
+
   builtin_functions = new_AVLTree(&varcmp);
 
   avl_insert(builtin_functions, sdsnew("print"), (void *)(intptr_t)OpPrint);
@@ -511,6 +521,251 @@ static inline int get_builtin(sds name) {
     return (int)(intptr_t)avl_find(builtin_functions, name);
   }
 }
+
+#ifdef __ENABLE_DIRECT_THREADED_CODE__
+static inline void **gen_table(void **table, long long int table_len,
+                               Vector *v_ins, void *L_end) {
+  void **ops_ptr = xmalloc(sizeof(void *) * (v_ins->len + 1));
+  for (size_t j = 0; j < v_ins->len; j++) {
+    long long int idx = (long long int)v_ins->data[j];
+    if (idx < table_len) {
+      ops_ptr[j] = table[idx];
+    }
+  }
+  ops_ptr[v_ins->len] = L_end;
+
+  return ops_ptr;
+}
+
+SexpObject *vm_exec(Vector *v_ins) {
+  if (!vm_initialized) {
+    vm_init();
+  }
+
+  SexpObject *ret = NULL;
+  Stack *stack = new_Stack();
+  Stack *frame_stack = new_Stack();
+  Frame *frame = new_Frame();
+  frame->v_ins = v_ins;
+  Registers *reg = frame->registers;
+
+  static void *table[] = {
+      &&L_OpPop,     &&L_OpPush,   &&L_OpAdd,      &&L_OpSub,
+      &&L_OpMul,     &&L_OpDiv,    &&L_OpMod,      &&L_OpEq,
+      &&L_OpNeq,     &&L_OpLt,     &&L_OpLeq,      &&L_OpGt,
+      &&L_OpGeq,     &&L_OpPrint,  &&L_OpPrintln,  &&L_OpJumpRel,
+      &&L_OpFuncDef, &&L_OpCall,   &&L_OpReturn,   &&L_OpVarDef,
+      &&L_OpGetVar,  &&L_OpBranch, &&L_OpMakeList, &&L_OpSetArgFrom,
+      &&L_OpDumpEnv};
+  static const long long int table_len = sizeof(table) / sizeof(table[0]);
+  void **ops_ptr = gen_table(table, table_len, v_ins, &&L_end);
+
+  // printf("op: %lld, reg: %p, reg->pc: %ld\n", op, reg, reg->pc);
+#define DTHC_CASE(op_name, proc_code)                                          \
+  L_##op_name : {                                                              \
+    proc_code;                                                                 \
+    goto *ops_ptr[reg->pc++];                                                  \
+  }
+
+  // start
+  long long int op = (long long int)(intptr_t)v_ins->data[reg->pc++];
+  goto *table[op];
+
+L_MAIN_LOOP:
+  reg->pc++;
+  goto *table[reg->pc];
+
+L_OP_SELECT:
+  goto *table[op];
+
+  DTHC_CASE(OpPop, { pop_Stack(stack); });
+  DTHC_CASE(OpPush, { push_Stack(stack, frame->v_ins->data[reg->pc++]); });
+  DTHC_CASE(OpAdd, {
+    double r = get_float_val(pop_SexpObject_from_stack(stack));
+    double l = get_float_val(pop_SexpObject_from_stack(stack));
+    push_Stack_VValue(stack, new_SexpObject_float(l + r));
+  })
+  DTHC_CASE(OpSub, {
+    double r = get_float_val(pop_SexpObject_from_stack(stack));
+    double l = get_float_val(pop_SexpObject_from_stack(stack));
+    push_Stack_VValue(stack, new_SexpObject_float(l - r));
+  });
+  DTHC_CASE(OpMul, {
+    double r = get_float_val(pop_SexpObject_from_stack(stack));
+    double l = get_float_val(pop_SexpObject_from_stack(stack));
+    push_Stack_VValue(stack, new_SexpObject_float(l * r));
+  });
+  DTHC_CASE(OpDiv, {
+    double r = get_float_val(pop_SexpObject_from_stack(stack));
+    double l = get_float_val(pop_SexpObject_from_stack(stack));
+    push_Stack_VValue(stack, new_SexpObject_float(l / r));
+  });
+  DTHC_CASE(OpMod, {
+    double r = get_float_val(pop_SexpObject_from_stack(stack));
+    double l = get_float_val(pop_SexpObject_from_stack(stack));
+    push_Stack_VValue(stack, new_SexpObject_float(dmod(l, r)));
+  });
+  DTHC_CASE(OpEq, {
+    VMValue *r = pop_Stack(stack);
+    VMValue *l = pop_Stack(stack);
+    push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) == 0));
+  });
+  DTHC_CASE(OpNeq, {
+    VMValue *r = pop_Stack(stack);
+    VMValue *l = pop_Stack(stack);
+    push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) != 0));
+  });
+  DTHC_CASE(OpLt, {
+    VMValue *r = pop_Stack(stack);
+    VMValue *l = pop_Stack(stack);
+    push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) < 0));
+  });
+  DTHC_CASE(OpLeq, {
+    VMValue *r = pop_Stack(stack);
+    VMValue *l = pop_Stack(stack);
+    push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) <= 0));
+  });
+  DTHC_CASE(OpGt, {
+    VMValue *r = pop_Stack(stack);
+    VMValue *l = pop_Stack(stack);
+    push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) > 0));
+  });
+  DTHC_CASE(OpGeq, {
+    VMValue *r = pop_Stack(stack);
+    VMValue *l = pop_Stack(stack);
+    push_Stack_VValue(stack, new_SexpObject_bool(cmp_VMValue(l, r) >= 0));
+  });
+  DTHC_CASE(OpPrint, {
+    VMValue *val = pop_Stack(stack);
+    printf("%s", show_VMValue(val));
+  });
+  DTHC_CASE(OpPrintln, {
+    VMValue *val = pop_Stack(stack);
+    printf("%s\n", show_VMValue(val));
+  });
+  DTHC_CASE(OpJumpRel, {
+    long long int lv = (long long int)(intptr_t)frame->v_ins->data[reg->pc++];
+    reg->pc += lv;
+  });
+  DTHC_CASE(OpFuncDef, {
+    VMValue *vfptr = frame->v_ins->data[reg->pc++];
+    VMFunction *vmf = get_func_VMValue(vfptr);
+    insert_Env(frame->env, vmf->name, vfptr);
+  });
+  DTHC_CASE(OpCall, {
+    sds func_name = (sds)frame->v_ins->data[reg->pc++];
+    int bop = get_builtin(func_name);
+    if (bop != -1) {
+      op = bop;
+      reg->pc++; // skip argc
+      goto L_OP_SELECT;
+    }
+
+    VMValue *v = get_Env(frame->env, func_name);
+
+    if (v == NULL) {
+      fprintf(stderr, "No such a function : %s\n", func_name);
+      exit(EXIT_FAILURE);
+    }
+    VMFunction *vmf = get_func_VMValue(v);
+
+    size_t argc = (size_t)frame->v_ins->data[reg->pc++];
+    Frame *new_frame = new_Frame();
+    new_frame->env = dup_Env(frame->env);
+    new_frame->args = new_vec();
+    new_frame->parent = frame;
+
+    for (size_t i = 0; i < argc; i++) {
+      vec_push(new_frame->args, pop_Stack(stack));
+    }
+
+    new_frame->v_ins = vmf->code;
+
+    push_Stack(frame_stack, (void **)ops_ptr);
+    if (vmf->ops_ptr == NULL) {
+      vmf->ops_ptr = gen_table(table, table_len, vmf->code, &&L_end);
+    }
+    ops_ptr = vmf->ops_ptr;
+
+    push_Stack(frame_stack, frame); // 戻る先のフレーム
+    frame = new_frame;
+    reg = new_frame->registers;
+  });
+  DTHC_CASE(OpReturn, {
+    free_Frame(&frame);
+    frame = pop_Stack(frame_stack); // フレームを復元
+    reg = frame->registers;
+
+    ops_ptr = pop_Stack(frame_stack);
+  });
+  DTHC_CASE(OpVarDef, {
+    sds var_name = (sds)frame->v_ins->data[reg->pc++];
+    VMValue *v = pop_Stack(stack);
+    insert_Env(frame->env, var_name, v);
+    // printf("def! name: %s, val: %s\n", var_name, show_VMValue(v));
+  });
+  DTHC_CASE(OpGetVar, {
+    sds var_name = (sds)frame->v_ins->data[reg->pc++];
+    VMValue *v = get_Env(frame->env, var_name);
+    // printf("get! name: %s, val: %s\n", var_name, show_VMValue(v));
+    push_Stack(stack, v);
+  });
+  DTHC_CASE(OpBranch, {
+    long long int tBlock_len =
+        (long long int)(intptr_t)frame->v_ins->data[reg->pc++];
+    SexpObject *cond_result = pop_SexpObject_from_stack(stack);
+    assert(cond_result->ty == bool_ty);
+
+    if (!cond_result->bool_val) {
+      reg->pc += tBlock_len;
+    }
+  });
+  DTHC_CASE(OpMakeList, {
+    long long int list_len =
+        (long long int)(intptr_t)frame->v_ins->data[reg->pc++];
+    Vector *list = new_vec_with(list_len);
+    list->len = list_len;
+
+    for (long long int i = list_len - 1; i >= 0; i--) {
+      list->data[i] = pop_Stack(stack);
+    }
+
+    push_Stack_VValue(stack, new_SexpObject_list(list));
+  });
+  DTHC_CASE(OpSetArgFrom, {
+    sds arg_name = (sds)frame->v_ins->data[reg->pc++];
+    size_t arg_idx = (size_t)(intptr_t)frame->v_ins->data[reg->pc++];
+    assert(arg_idx < frame->args->len);
+
+    insert_Env(frame->env, arg_name, frame->args->data[arg_idx]);
+  });
+  DTHC_CASE(OpDumpEnv, {
+    Vector *keys = avl_keys(frame->env->vars);
+    for (size_t i = 0; i < keys->len; i++) {
+      sds key = (sds)keys->data[i];
+      VMValue *v = get_Env(frame->env, key);
+      printf("%s - %s\n", key, v->ty == VValue ? "VValue" : "VFunc");
+    }
+  });
+
+L_end:
+  // 戻るべきフレームが存在する．
+  if (frame->parent != NULL) {
+    free_Frame(&frame);
+    frame = pop_Stack(frame_stack); // フレームを復元
+    reg = frame->registers;
+    ops_ptr = (void **)pop_Stack(frame_stack);
+    goto L_MAIN_LOOP;
+  }
+
+  if (!isempty_Stack(stack)) {
+    ret = (SexpObject *)pop_Stack(stack);
+  }
+
+  return ret;
+}
+
+#else
 
 SexpObject *vm_exec(Vector *v_ins) {
   if (!vm_initialized) {
@@ -741,6 +996,7 @@ MAIN_LOOP:
 
   return ret;
 }
+#endif
 
 void vm_ins_dump_impl(Vector *v_ins, size_t depth) {
   sds sp = sdsempty();
