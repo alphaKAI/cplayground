@@ -245,6 +245,9 @@ VMFunction *new_VMFunction(sds name, Vector *code, Vector *arg_names) {
   func->name = name;
   func->code = code;
   func->arg_names = arg_names;
+#ifdef __ENABLE_DIRECT_THREADED_CODE__
+  func->ops_ptr = NULL;
+#endif
   return func;
 }
 
@@ -268,7 +271,7 @@ void dump_stack(Stack *stack) {
   Vector *v = stack->data;
   for (size_t i = 0; i < v->len; i++) {
     void *e = v->data[i];
-    printf("stack[%lld] %p : \n", i, e);
+    printf("stack[%ld] %p : \n", i, e);
   }
 }
 
@@ -476,8 +479,6 @@ Vector *vm_compile(Vector *parsed) {
 static AVLTree *builtin_functions;
 static bool vm_initialized;
 
-#define __ENABLE_DIRECT_THREADED_CODE__
-
 void vm_init(void) {
   if (vm_initialized) {
     return;
@@ -522,10 +523,10 @@ static inline int get_builtin(sds name) {
 }
 
 #ifdef __ENABLE_DIRECT_THREADED_CODE__
-static inline void **gen_table(void **table, size_t table_len, Vector *v_ins,
-                               void *L_end) {
+static inline void **gen_table(void **table, long long int table_len,
+                               Vector *v_ins, void *L_end) {
   void **ops_ptr = xmalloc(sizeof(void *) * (v_ins->len + 1));
-  for (int j = 0; j < v_ins->len; j++) {
+  for (size_t j = 0; j < v_ins->len; j++) {
     long long int idx = (long long int)v_ins->data[j];
     if (idx < table_len) {
       ops_ptr[j] = table[idx];
@@ -681,7 +682,10 @@ L_OP_SELECT:
     new_frame->v_ins = vmf->code;
 
     push_Stack(frame_stack, (void **)ops_ptr);
-    ops_ptr = gen_table(table, table_len, new_frame->v_ins, &&L_end);
+    if (vmf->ops_ptr == NULL) {
+      vmf->ops_ptr = gen_table(table, table_len, vmf->code, &&L_end);
+    }
+    ops_ptr = vmf->ops_ptr;
 
     push_Stack(frame_stack, frame); // 戻る先のフレーム
     frame = new_frame;
