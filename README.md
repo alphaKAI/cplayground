@@ -16,6 +16,7 @@ This is a repository of my tiny scrapped codes in C.
 - Priority Queue
 - Dijkstra
 - minilisp Compiler & Virtual Machine
+- ArrayList
 
 
 ## License

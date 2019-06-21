@@ -21,4 +21,5 @@ void sexp_test(void);
 void stack_test(void);
 void heap_test(void);
 void minilisp_test(void);
+void arraylist_test(void);
 #endif

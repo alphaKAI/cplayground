@@ -47,4 +47,8 @@
 
 ////////////   Dijkstra   ///////////////
 #include "dijkstra.h"
+
+////////////   ArrayList ///////////////
+#include "arraylist.h"
+
 #endif

@@ -13,6 +13,7 @@ void xfreeImpl(void **);
 double parseDouble(sds);
 
 #define xnew(T) (xmalloc(sizeof(T)))
+#define xnewN(T, N) (xmalloc(sizeof(T) * N))
 
 #define INT_TO_VoPTR(i) ((void *)(intptr_t)i)
 #define VoPTR_TO_INT(ptr) ((int)(intptr_t)ptr)
@@ -75,4 +76,20 @@ GenLowersToNumeric(unsigned char, int, uchar, int);
 GenNumericToLowers(unsigned long long int, unsigned char, ulli, uchar,
                    UCHAR_MAX);
 GenLowersToNumeric(unsigned char, unsigned long long int, uchar, ulli);
+
+#define PNULL_CHECK(ptr, msg)                                                  \
+  if (ptr == NULL) {                                                           \
+    fprintf(stderr, "[%d] %s\n", __LINE__, msg);                               \
+    exit(EXIT_FAILURE);                                                        \
+  }
+
+#define PNULL_CHECK_DEFAULT(ptr)                                               \
+  PNULL_CHECK(ptr, "given a null pointer - " #ptr);
+
+#define container_of(ptr, type, member)                                        \
+  ({                                                                           \
+    const typeof(((type *)0)->member) *__mptr = (ptr);                         \
+    (type *)((char *)__mptr - offsetof(type, member));                         \
+  })
+
 #endif
