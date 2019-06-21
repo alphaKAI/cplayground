@@ -24,6 +24,16 @@ typedef struct {
     }                                                                          \
   }
 
+#define iter_ArrayList(ElemType, list, member, varname, proc_body)             \
+  {                                                                            \
+    ElemType *varname;                                                         \
+    for (ssize_t idx = list->head; idx != -1 && idx <= list->tail;             \
+         idx = list->list[idx]->next) {                                        \
+      varname = container_of(list->list[idx], ElemType, member);               \
+      proc_body;                                                               \
+    }                                                                          \
+  }
+
 #define init_ArrayListNode(node)                                               \
   {                                                                            \
     PNULL_CHECK_DEFAULT((node));                                               \
