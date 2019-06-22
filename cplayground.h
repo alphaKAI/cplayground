@@ -51,4 +51,7 @@
 ////////////   ArrayList ///////////////
 #include "arraylist.h"
 
+//////////// StopWatch ///////////////
+#include "stopwatch.h"
+
 #endif
