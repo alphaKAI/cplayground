@@ -453,6 +453,7 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
         }
         }
       }
+      xfree(&func_body);
 
       VMFunction *vmf =
           new_VMFunction(e1->symbol_val, func_body_opt, arg_names);
