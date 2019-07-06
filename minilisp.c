@@ -5,6 +5,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+static const int op_width_table[] = {
+    [OpPop] = 1,         [OpPush] = 2,       [OpAllocLvars] = 2,
+    [OpFreeLvars] = 2,   [OpGetLocal] = 2,   [OpSetLocal] = 2,
+    [OpSetArgLocal] = 2, [OpAdd] = 1,        [OpSub] = 1,
+    [OpMul] = 1,         [OpDiv] = 1,        [OpMod] = 1,
+    [OpEq] = 1,          [OpNeq] = 1,        [OpLt] = 1,
+    [OpLeq] = 1,         [OpGt] = 1,         [OpGeq] = 1,
+    [OpPrint] = 1,       [OpPrintln] = 1,    [OpJumpRel] = 2,
+    [OpFuncDef] = 2,     [OpCall] = 3,       [OpReturn] = 1,
+    [OpVarDef] = 2,      [OpGetVar] = 2,     [OpBranch] = 2,
+    [OpMakeList] = 2,    [OpSetArgFrom] = 3, [OpDumpEnv] = 1};
+
 VMValue *new_VMValue(int ty, void *e) {
   VMValue *vmvalue = xmalloc(sizeof(VMValue));
   vmvalue->ty = ty;
@@ -394,13 +406,6 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
       Vector *func_body = new_vec();
 
       if (arg_names != NULL) {
-        /*
-          for (size_t i = 0; i < arg_names->len; i++) {
-          vec_pushi(func_body, OpSetArgFrom);
-          vec_push(func_body, arg_names->data[arg_names->len - i - 1]);
-          vec_pushi(func_body, i);
-        }
-        */
         vec_pushi(func_body, OpAllocLvars);
         vec_pushi(func_body, arg_names->len);
         for (size_t i = 0; i < arg_names->len; i++) {
@@ -421,53 +426,16 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
 
       for (size_t i = 0; i < func_body->len;) {
         Opcode op = (Opcode)func_body->data[i++];
+        const int op_width = op_width_table[op] - 1;
+
         switch (op) {
-        case OpPop:
+        default: {
           vec_pushi(func_body_opt, op);
+          for (int j = 0; j < op_width; j++) {
+            vec_push(func_body_opt, func_body->data[i++]);
+          }
           break;
-        case OpPush:
-          vec_pushi(func_body_opt, op);
-          vec_push(func_body_opt, func_body->data[i++]);
-          break;
-        case OpAllocLvars:
-        case OpGetLocal:
-        case OpSetLocal:
-        case OpSetArgLocal:
-          vec_pushi(func_body_opt, op);
-          vec_push(func_body_opt, func_body->data[i++]);
-          break;
-        case OpFreeLvars:
-        case OpAdd:
-        case OpSub:
-        case OpMul:
-        case OpDiv:
-        case OpMod:
-        case OpEq:
-        case OpNeq:
-        case OpLt:
-        case OpLeq:
-        case OpGt:
-        case OpGeq:
-        case OpPrint:
-        case OpPrintln:
-          vec_pushi(func_body_opt, op);
-          break;
-        case OpJumpRel:
-          vec_pushi(func_body_opt, op);
-          vec_push(func_body_opt, func_body->data[i++]);
-          break;
-        case OpFuncDef:
-          vec_pushi(func_body_opt, op);
-          vec_push(func_body_opt, func_body->data[i++]);
-          break;
-        case OpCall:
-          vec_pushi(func_body_opt, op);
-          vec_push(func_body_opt, func_body->data[i++]);
-          vec_push(func_body_opt, func_body->data[i++]);
-          break;
-        case OpReturn:
-          vec_pushi(func_body_opt, op);
-          break;
+        }
         case OpVarDef:
         case OpGetVar: {
           sds var_name = (sds)func_body->data[i++];
@@ -483,29 +451,6 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
 
           break;
         }
-        case OpBranch: {
-          vec_pushi(func_body_opt, op);
-          vec_push(func_body_opt, func_body->data[i++]);
-          break;
-        }
-        case OpDumpEnv:
-          vec_pushi(func_body_opt, op);
-          break;
-        case OpMakeList: {
-          vec_pushi(func_body_opt, op);
-          vec_push(func_body_opt, func_body->data[i++]);
-          break;
-        }
-        case OpSetArgFrom: {
-          vec_pushi(func_body_opt, op);
-          vec_push(func_body_opt, func_body->data[i++]);
-          vec_push(func_body_opt, func_body->data[i++]);
-          break;
-        }
-        default:
-          fprintf(stderr, "Unkown op given. op: %lld\n", op);
-          exit(EXIT_FAILURE);
-          break;
         }
       }
 
