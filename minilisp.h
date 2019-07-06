@@ -42,10 +42,15 @@ enum {
   OpDumpEnv
 };
 
+#define FUNC_CACHE_LEN 5
+
+struct VMValue;
+
 typedef struct Env {
   AVLTree *vars;
   struct Env *parent;
   bool copied;
+  struct VMValue *cached_funcs[FUNC_CACHE_LEN];
 } Env;
 
 static inline int varcmp(void *lhs, void *rhs) {
