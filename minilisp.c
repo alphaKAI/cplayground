@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 VMValue *new_VMValue(int ty, void *e) {
   VMValue *vmvalue = xmalloc(sizeof(VMValue));
@@ -192,7 +193,13 @@ static inline VMValue *get_Env(Env *env, sds name) {
     return avl_find(env->vars, name);
   } else {
     if (env->copied == false) {
-      return avl_find(env->parent->vars, name);
+      for (Env *e = env->parent; e != NULL; e = e->parent) {
+        VMValue *r = avl_find(e->vars, name);
+        if (r) {
+          return r;
+        }
+      }
+      return NULL;
     } else {
       return avl_find(env->vars, name);
     }
@@ -228,6 +235,7 @@ Frame *new_Frame(void) {
   frame->env = new_Env();
   frame->args = new_vec();
   frame->parent = NULL;
+  frame->lvars = NULL;
   frame->v_ins = NULL;
   return frame;
 }
@@ -302,6 +310,18 @@ static inline void vm_compile_binary_fun(Opcode op, Vector *v, Vector *ret) {
   vec_pushi(ret, op);
 }
 
+static ssize_t check_var_name_in_arg_names(sds var_name, Vector *arg_names) {
+  ssize_t found = -1;
+  for (size_t i = 0; i < arg_names->len; i++) {
+    sds arg_name = (sds)arg_names->data[arg_names->len - i - 1];
+    if (strcmp(var_name, arg_name) == 0) {
+      found = i;
+      break;
+    }
+  }
+  return found;
+}
+
 Vector *vm_compile_SexpObject(SexpObject *obj) {
   Vector *ret = new_vec();
 
@@ -357,8 +377,8 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
       assert(v->len >= 4);
       SexpObject *e1 = (SexpObject *)v->data[1];
       SexpObject *e2 = (SexpObject *)v->data[2];
-      assert(e1->ty == symbol_ty);
-      assert(e2->ty == list_ty);
+      assert(e1->ty == symbol_ty); // func_name
+      assert(e2->ty == list_ty);   // args
 
       Vector *arg_names = NULL;
       Vector *args = e2->list_val;
@@ -374,9 +394,17 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
       Vector *func_body = new_vec();
 
       if (arg_names != NULL) {
-        for (size_t i = 0; i < arg_names->len; i++) {
+        /*
+          for (size_t i = 0; i < arg_names->len; i++) {
           vec_pushi(func_body, OpSetArgFrom);
           vec_push(func_body, arg_names->data[arg_names->len - i - 1]);
+          vec_pushi(func_body, i);
+        }
+        */
+        vec_pushi(func_body, OpAllocLvars);
+        vec_pushi(func_body, arg_names->len);
+        for (size_t i = 0; i < arg_names->len; i++) {
+          vec_pushi(func_body, OpSetArgLocal);
           vec_pushi(func_body, i);
         }
       }
@@ -385,9 +413,104 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
         SexpObject *e = (SexpObject *)v->data[i];
         vec_append(func_body, vm_compile_SexpObject(e));
       }
+      if (arg_names != NULL) {
+        vec_pushi(func_body, OpFreeLvars);
+      }
       vec_pushi(func_body, OpReturn);
+      Vector *func_body_opt = new_vec();
 
-      VMFunction *vmf = new_VMFunction(e1->symbol_val, func_body, arg_names);
+      for (size_t i = 0; i < func_body->len;) {
+        Opcode op = (Opcode)func_body->data[i++];
+        switch (op) {
+        case OpPop:
+          vec_pushi(func_body_opt, op);
+          break;
+        case OpPush:
+          vec_pushi(func_body_opt, op);
+          vec_push(func_body_opt, func_body->data[i++]);
+          break;
+        case OpAllocLvars:
+        case OpGetLocal:
+        case OpSetLocal:
+        case OpSetArgLocal:
+          vec_pushi(func_body_opt, op);
+          vec_push(func_body_opt, func_body->data[i++]);
+          break;
+        case OpFreeLvars:
+        case OpAdd:
+        case OpSub:
+        case OpMul:
+        case OpDiv:
+        case OpMod:
+        case OpEq:
+        case OpNeq:
+        case OpLt:
+        case OpLeq:
+        case OpGt:
+        case OpGeq:
+        case OpPrint:
+        case OpPrintln:
+          vec_pushi(func_body_opt, op);
+          break;
+        case OpJumpRel:
+          vec_pushi(func_body_opt, op);
+          vec_push(func_body_opt, func_body->data[i++]);
+          break;
+        case OpFuncDef:
+          vec_pushi(func_body_opt, op);
+          vec_push(func_body_opt, func_body->data[i++]);
+          break;
+        case OpCall:
+          vec_pushi(func_body_opt, op);
+          vec_push(func_body_opt, func_body->data[i++]);
+          vec_push(func_body_opt, func_body->data[i++]);
+          break;
+        case OpReturn:
+          vec_pushi(func_body_opt, op);
+          break;
+        case OpVarDef:
+        case OpGetVar: {
+          sds var_name = (sds)func_body->data[i++];
+
+          ssize_t found = check_var_name_in_arg_names(var_name, arg_names);
+          if (found == -1) {
+            vec_pushi(func_body_opt, op);
+            vec_push(func_body_opt, var_name);
+          } else {
+            vec_pushi(func_body_opt, op == OpVarDef ? OpSetLocal : OpGetLocal);
+            vec_pushi(func_body_opt, found);
+          }
+
+          break;
+        }
+        case OpBranch: {
+          vec_pushi(func_body_opt, op);
+          vec_push(func_body_opt, func_body->data[i++]);
+          break;
+        }
+        case OpDumpEnv:
+          vec_pushi(func_body_opt, op);
+          break;
+        case OpMakeList: {
+          vec_pushi(func_body_opt, op);
+          vec_push(func_body_opt, func_body->data[i++]);
+          break;
+        }
+        case OpSetArgFrom: {
+          vec_pushi(func_body_opt, op);
+          vec_push(func_body_opt, func_body->data[i++]);
+          vec_push(func_body_opt, func_body->data[i++]);
+          break;
+        }
+        default:
+          fprintf(stderr, "Unkown op given. op: %lld\n", op);
+          exit(EXIT_FAILURE);
+          break;
+        }
+      }
+
+      VMFunction *vmf =
+          new_VMFunction(e1->symbol_val, func_body_opt, arg_names);
       vec_pushi(ret, OpFuncDef);
       vec_push(ret, new_VMValueWithFunc(vmf));
     } else if (sdscmp(func_name, IF_STR) == 0) { // IF
@@ -550,17 +673,18 @@ SexpObject *vm_exec(Vector *v_ins) {
   Registers *reg = frame->registers;
 
   static void *table[] = {
-      &&L_OpPop,     &&L_OpPush,   &&L_OpAdd,      &&L_OpSub,
-      &&L_OpMul,     &&L_OpDiv,    &&L_OpMod,      &&L_OpEq,
-      &&L_OpNeq,     &&L_OpLt,     &&L_OpLeq,      &&L_OpGt,
-      &&L_OpGeq,     &&L_OpPrint,  &&L_OpPrintln,  &&L_OpJumpRel,
-      &&L_OpFuncDef, &&L_OpCall,   &&L_OpReturn,   &&L_OpVarDef,
-      &&L_OpGetVar,  &&L_OpBranch, &&L_OpMakeList, &&L_OpSetArgFrom,
-      &&L_OpDumpEnv};
+      &&L_OpPop,        &&L_OpPush,     &&L_OpAllocLvars,  &&L_OpFreeLvars,
+      &&L_OpGetLocal,   &&L_OpSetLocal, &&L_OpSetArgLocal, &&L_OpAdd,
+      &&L_OpSub,        &&L_OpMul,      &&L_OpDiv,         &&L_OpMod,
+      &&L_OpEq,         &&L_OpNeq,      &&L_OpLt,          &&L_OpLeq,
+      &&L_OpGt,         &&L_OpGeq,      &&L_OpPrint,       &&L_OpPrintln,
+      &&L_OpJumpRel,    &&L_OpFuncDef,  &&L_OpCall,        &&L_OpReturn,
+      &&L_OpVarDef,     &&L_OpGetVar,   &&L_OpBranch,      &&L_OpMakeList,
+      &&L_OpSetArgFrom, &&L_OpDumpEnv};
   static const long long int table_len = sizeof(table) / sizeof(table[0]);
   void **ops_ptr = gen_table(table, table_len, v_ins, &&L_end);
 
-  // printf("op: %lld, reg: %p, reg->pc: %ld\n", op, reg, reg->pc);
+  // printf("op: %s, reg: %p, reg->pc: %ld\n", #op_name, reg, reg->pc);
 #define DTHC_CASE(op_name, proc_code)                                          \
   L_##op_name : {                                                              \
     proc_code;                                                                 \
@@ -580,6 +704,23 @@ L_OP_SELECT:
 
   DTHC_CASE(OpPop, { pop_Stack(stack); });
   DTHC_CASE(OpPush, { push_Stack(stack, frame->v_ins->data[reg->pc++]); });
+  DTHC_CASE(OpAllocLvars, {
+    long long int vars = (long long int)frame->v_ins->data[reg->pc++];
+    frame->lvars = new_vec_with(vars);
+  });
+  DTHC_CASE(OpFreeLvars, { xfree(&frame->lvars); });
+  DTHC_CASE(OpGetLocal, {
+    long long int var_idx = (long long int)frame->v_ins->data[reg->pc++];
+    push_Stack(stack, frame->lvars->data[var_idx]);
+  });
+  DTHC_CASE(OpSetLocal, {
+    long long int var_idx = (long long int)frame->v_ins->data[reg->pc++];
+    frame->lvars->data[var_idx] = pop_Stack(stack);
+  });
+  DTHC_CASE(OpSetArgLocal, {
+    long long int var_idx = (long long int)frame->v_ins->data[reg->pc++];
+    frame->lvars->data[var_idx] = frame->args->data[var_idx];
+  });
   DTHC_CASE(OpAdd, {
     double r = get_float_val(pop_SexpObject_from_stack(stack));
     double l = get_float_val(pop_SexpObject_from_stack(stack));
@@ -791,6 +932,31 @@ MAIN_LOOP:
     case OpPush:
       push_Stack(stack, frame->v_ins->data[reg->pc++]);
       break;
+
+    case OpAllocLvars: {
+      long long int vars = (long long int)frame->v_ins->data[reg->pc++];
+      frame->lvars = new_vec_with(vars);
+      break;
+    }
+    case OpFreeLvars: {
+      xfree(&frame->lvars);
+      break;
+    }
+    case OpGetLocal: {
+      long long int var_idx = (long long int)frame->v_ins->data[reg->pc++];
+      push_Stack(stack, frame->lvars->data[var_idx]);
+      break;
+    }
+    case OpSetLocal: {
+      long long int var_idx = (long long int)frame->v_ins->data[reg->pc++];
+      frame->lvars->data[var_idx] = pop_Stack(stack);
+      break;
+    }
+    case OpSetArgLocal: {
+      long long int var_idx = (long long int)frame->v_ins->data[reg->pc++];
+      frame->lvars->data[var_idx] = frame->args->data[var_idx];
+      break;
+    }
     case OpAdd: {
       double r = get_float_val(pop_SexpObject_from_stack(stack));
       double l = get_float_val(pop_SexpObject_from_stack(stack));
@@ -1015,6 +1181,21 @@ void vm_ins_dump_impl(Vector *v_ins, size_t depth) {
     case OpPush:
       printf("OpPush %s\n", show_VMValue(v_ins->data[i++]));
       break;
+    case OpAllocLvars:
+      printf("OpAllocLvars %lld\n", (long long int)v_ins->data[i++]);
+      break;
+    case OpFreeLvars:
+      printf("OpFreeLvars\n");
+      break;
+    case OpGetLocal:
+      printf("OpGetLocal %lld\n", (long long int)v_ins->data[i++]);
+      break;
+    case OpSetLocal:
+      printf("OpSetLocal %lld\n", (long long int)v_ins->data[i++]);
+      break;
+    case OpSetArgLocal:
+      printf("OpSetArgLocal %lld\n", (long long int)v_ins->data[i++]);
+      break;
     case OpAdd: {
       printf("OpAdd\n");
       break;
@@ -1044,7 +1225,7 @@ void vm_ins_dump_impl(Vector *v_ins, size_t depth) {
       break;
     }
     case OpLt: {
-      printf("OpLt");
+      printf("OpLt\n");
       break;
     }
     case OpLeq: {

@@ -12,6 +12,11 @@ typedef struct {
 enum {
   OpPop,
   OpPush,
+  OpAllocLvars,
+  OpFreeLvars,
+  OpGetLocal,
+  OpSetLocal,
+  OpSetArgLocal,
   OpAdd,
   OpSub,
   OpMul,
@@ -62,6 +67,7 @@ typedef struct Frame {
   Env *env;
   Vector *args;
   struct Frame *parent;
+  Vector *lvars;
   Vector *v_ins;
 } Frame;
 
