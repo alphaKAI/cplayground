@@ -36,6 +36,7 @@ enum {
   OpReturn,
   OpVarDef,
   OpGetVar,
+  OpSetVar,
   OpBranch,
   OpMakeList,
   OpSetArgFrom,

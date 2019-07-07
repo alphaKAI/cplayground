@@ -6,16 +6,52 @@
 #include <string.h>
 
 static const int op_width_table[] = {
-    [OpPop] = 1,         [OpPush] = 2,       [OpAllocLvars] = 2,
-    [OpFreeLvars] = 2,   [OpGetLocal] = 2,   [OpSetLocal] = 2,
-    [OpSetArgLocal] = 2, [OpAdd] = 1,        [OpSub] = 1,
-    [OpMul] = 1,         [OpDiv] = 1,        [OpMod] = 1,
-    [OpEq] = 1,          [OpNeq] = 1,        [OpLt] = 1,
-    [OpLeq] = 1,         [OpGt] = 1,         [OpGeq] = 1,
-    [OpPrint] = 1,       [OpPrintln] = 1,    [OpJumpRel] = 2,
-    [OpFuncDef] = 2,     [OpCall] = 3,       [OpReturn] = 1,
-    [OpVarDef] = 2,      [OpGetVar] = 2,     [OpBranch] = 2,
-    [OpMakeList] = 2,    [OpSetArgFrom] = 3, [OpDumpEnv] = 1};
+    [OpPop] = 1,         [OpPush] = 2,     [OpAllocLvars] = 2,
+    [OpFreeLvars] = 2,   [OpGetLocal] = 2, [OpSetLocal] = 2,
+    [OpSetArgLocal] = 2, [OpAdd] = 1,      [OpSub] = 1,
+    [OpMul] = 1,         [OpDiv] = 1,      [OpMod] = 1,
+    [OpEq] = 1,          [OpNeq] = 1,      [OpLt] = 1,
+    [OpLeq] = 1,         [OpGt] = 1,       [OpGeq] = 1,
+    [OpPrint] = 1,       [OpPrintln] = 1,  [OpJumpRel] = 2,
+    [OpFuncDef] = 2,     [OpCall] = 3,     [OpReturn] = 1,
+    [OpVarDef] = 2,      [OpGetVar] = 2,   [OpSetVar] = 2,
+    [OpBranch] = 2,      [OpMakeList] = 2, [OpSetArgFrom] = 3,
+    [OpDumpEnv] = 1};
+
+#define SpecifyPlaceAndSetNameItSelf(e) [e] = #e
+
+static const char *op_to_string[] = {
+    SpecifyPlaceAndSetNameItSelf(OpPop),
+    SpecifyPlaceAndSetNameItSelf(OpPush),
+    SpecifyPlaceAndSetNameItSelf(OpAllocLvars),
+    SpecifyPlaceAndSetNameItSelf(OpFreeLvars),
+    SpecifyPlaceAndSetNameItSelf(OpGetLocal),
+    SpecifyPlaceAndSetNameItSelf(OpSetLocal),
+    SpecifyPlaceAndSetNameItSelf(OpSetArgLocal),
+    SpecifyPlaceAndSetNameItSelf(OpAdd),
+    SpecifyPlaceAndSetNameItSelf(OpSub),
+    SpecifyPlaceAndSetNameItSelf(OpMul),
+    SpecifyPlaceAndSetNameItSelf(OpDiv),
+    SpecifyPlaceAndSetNameItSelf(OpMod),
+    SpecifyPlaceAndSetNameItSelf(OpEq),
+    SpecifyPlaceAndSetNameItSelf(OpNeq),
+    SpecifyPlaceAndSetNameItSelf(OpLt),
+    SpecifyPlaceAndSetNameItSelf(OpLeq),
+    SpecifyPlaceAndSetNameItSelf(OpGt),
+    SpecifyPlaceAndSetNameItSelf(OpGeq),
+    SpecifyPlaceAndSetNameItSelf(OpPrint),
+    SpecifyPlaceAndSetNameItSelf(OpPrintln),
+    SpecifyPlaceAndSetNameItSelf(OpJumpRel),
+    SpecifyPlaceAndSetNameItSelf(OpFuncDef),
+    SpecifyPlaceAndSetNameItSelf(OpCall),
+    SpecifyPlaceAndSetNameItSelf(OpReturn),
+    SpecifyPlaceAndSetNameItSelf(OpVarDef),
+    SpecifyPlaceAndSetNameItSelf(OpGetVar),
+    SpecifyPlaceAndSetNameItSelf(OpSetVar),
+    SpecifyPlaceAndSetNameItSelf(OpBranch),
+    SpecifyPlaceAndSetNameItSelf(OpMakeList),
+    SpecifyPlaceAndSetNameItSelf(OpSetArgFrom),
+    SpecifyPlaceAndSetNameItSelf(OpDumpEnv)};
 
 VMValue *new_VMValue(int ty, void *e) {
   VMValue *vmvalue = xmalloc(sizeof(VMValue));
@@ -361,6 +397,8 @@ static sds DEF_VAR_STR;
 static sds DEF_FUN_STR;
 static sds IF_STR;
 static sds BEGIN_STR;
+static sds WHILE_STR;
+static sds SET_STR;
 
 Vector *vm_compile_SexpObject(SexpObject *obj);
 
@@ -456,24 +494,14 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
 
       Vector *func_body = new_vec();
 
-      if (arg_names != NULL) {
-        vec_pushi(func_body, OpAllocLvars);
-        vec_pushi(func_body, arg_names->len);
-        for (size_t i = 0; i < arg_names->len; i++) {
-          vec_pushi(func_body, OpSetArgLocal);
-          vec_pushi(func_body, i);
-        }
-      }
-
       for (size_t i = 3; i < v->len; i++) {
         SexpObject *e = (SexpObject *)v->data[i];
         vec_append(func_body, vm_compile_SexpObject(e));
       }
-      if (arg_names != NULL) {
-        vec_pushi(func_body, OpFreeLvars);
-      }
-      vec_pushi(func_body, OpReturn);
+
       Vector *func_body_opt = new_vec();
+
+      Vector *lvars = new_vec();
 
       for (size_t i = 0; i < func_body->len;) {
         Opcode op = (Opcode)func_body->data[i++];
@@ -488,13 +516,59 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
           break;
         }
         case OpVarDef:
-        case OpGetVar: {
+        case OpGetVar:
+        case OpSetVar: {
           sds var_name = (sds)func_body->data[i++];
 
-          ssize_t found = check_var_name_in_arg_names(var_name, arg_names);
+          ssize_t found = -1;
+          size_t arg_names_len = 0;
+          if (arg_names != NULL) {
+            found = check_var_name_in_arg_names(var_name, arg_names);
+            arg_names_len = arg_names->len;
+          }
           if (found == -1) {
-            vec_pushi(func_body_opt, op);
-            vec_push(func_body_opt, var_name);
+            if (op == OpVarDef || op == OpSetVar) {
+              ssize_t lvar_idx_1 = -1;
+              if (op == OpVarDef) {
+                vec_push(lvars, var_name);
+                lvar_idx_1 = lvars->len - 1;
+              } else {
+                for (size_t j = 0; j < lvars->len; j++) {
+                  sds lvar_name = (sds)lvars->data[j];
+                  if (strcmp(var_name, lvar_name) == 0) {
+                    lvar_idx_1 = j;
+                    break;
+                  }
+                }
+              }
+
+              if (lvar_idx_1 == -1) {
+                vec_pushi(func_body_opt, op);
+                vec_push(func_body_opt, var_name);
+              } else {
+                size_t lvar_idx = arg_names_len + lvar_idx_1;
+                vec_pushi(func_body_opt, OpSetLocal);
+                vec_pushi(func_body_opt, lvar_idx);
+              }
+            } else {
+              ssize_t found_lvar = -1;
+              for (size_t j = 0; j < lvars->len; j++) {
+                sds lvar_name = (sds)lvars->data[j];
+                if (strcmp(var_name, lvar_name) == 0) {
+                  found_lvar = j;
+                  break;
+                }
+              }
+              if (found_lvar == -1) {
+                // if not found, raise exception by OpGetVar
+                vec_pushi(func_body_opt, op);
+                vec_push(func_body_opt, var_name);
+              } else {
+                ssize_t lvar_idx = arg_names_len + found_lvar;
+                vec_pushi(func_body_opt, OpGetLocal);
+                vec_pushi(func_body_opt, lvar_idx);
+              }
+            }
           } else {
             vec_pushi(func_body_opt, op == OpVarDef ? OpSetLocal : OpGetLocal);
             vec_pushi(func_body_opt, found);
@@ -506,10 +580,37 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
       }
       xfree(&func_body);
 
-      VMFunction *vmf =
-          new_VMFunction(e1->symbol_val, func_body_opt, arg_names);
+      func_body = new_vec();
+
+      size_t alloca_size = 0;
+
+      if (arg_names != NULL) {
+        alloca_size += arg_names->len;
+      }
+      alloca_size += lvars->len;
+
+      vec_pushi(func_body, OpAllocLvars);
+      vec_pushi(func_body, alloca_size);
+
+      if (arg_names != NULL) {
+        for (size_t i = 0; i < arg_names->len; i++) {
+          vec_pushi(func_body, OpSetArgLocal);
+          vec_pushi(func_body, i);
+        }
+      }
+
+      vec_append(func_body, func_body_opt);
+
+      if (alloca_size) {
+        vec_pushi(func_body, OpFreeLvars);
+      }
+      vec_pushi(func_body, OpReturn);
+
+      VMFunction *vmf = new_VMFunction(e1->symbol_val, func_body, arg_names);
       vec_pushi(ret, OpFuncDef);
       vec_push(ret, new_VMValueWithFunc(vmf));
+
+      xfree(&lvars);
     } else if (sdscmp(func_name, IF_STR) == 0) { // IF
       assert(v->len >= 3);
       SexpObject *cond = v->data[1];
@@ -538,6 +639,32 @@ Vector *vm_compile_SexpObject(SexpObject *obj) {
       for (size_t i = 1; i < v->len; i++) {
         vec_append(ret, vm_compile_SexpObject(v->data[i]));
       }
+    } else if (sdscmp(func_name, WHILE_STR) == 0) { // while
+      assert(v->len == 3);
+      SexpObject *cond = v->data[1];
+      SexpObject *expr = v->data[2];
+
+      Vector *cond_ins = vm_compile_SexpObject(cond);
+      Vector *expr_ins = vm_compile_SexpObject(expr);
+      vec_pushi(expr_ins, OpJumpRel);
+      int joffset =
+          -(expr_ins->len + 1 /* this jump */ + cond_ins->len + 2 /* branch */);
+      vec_pushi(expr_ins, joffset);
+
+      vec_append(ret, cond_ins);
+      vec_pushi(ret, OpBranch);
+      vec_pushi(ret, expr_ins->len);
+      vec_append(ret, expr_ins);
+    } else if (sdscmp(func_name, SET_STR) == 0) {
+      assert(v->len == 3);
+      SexpObject *var_name = v->data[1];
+      assert(var_name->ty == symbol_ty);
+      SexpObject *expr = v->data[2];
+      Vector *expr_ins = vm_compile_SexpObject(expr);
+
+      vec_append(ret, expr_ins);
+      vec_pushi(ret, OpSetVar);
+      vec_push(ret, var_name->symbol_val);
     } else {
       size_t i = 0;
 
@@ -631,6 +758,8 @@ void vm_init(void) {
   DEF_FUN_STR = sdsnew("def-fun");
   IF_STR = sdsnew("if");
   BEGIN_STR = sdsnew("begin");
+  WHILE_STR = sdsnew("while");
+  SET_STR = sdsnew("set");
 }
 
 static inline int get_builtin(sds name) {
@@ -663,25 +792,25 @@ SexpObject *vm_exec(Vector *v_ins) {
   }
 
   SexpObject *ret = NULL;
-  Stack *stack = new_Stack();
+  register Stack *stack = new_Stack();
   Stack *frame_stack = new_Stack();
   Frame *frame = new_Frame();
   frame->v_ins = v_ins;
-  Registers *reg = frame->registers;
+  register Registers *reg = frame->registers;
 
   static void *table[] = {
-      &&L_OpPop,        &&L_OpPush,     &&L_OpAllocLvars,  &&L_OpFreeLvars,
-      &&L_OpGetLocal,   &&L_OpSetLocal, &&L_OpSetArgLocal, &&L_OpAdd,
-      &&L_OpSub,        &&L_OpMul,      &&L_OpDiv,         &&L_OpMod,
-      &&L_OpEq,         &&L_OpNeq,      &&L_OpLt,          &&L_OpLeq,
-      &&L_OpGt,         &&L_OpGeq,      &&L_OpPrint,       &&L_OpPrintln,
-      &&L_OpJumpRel,    &&L_OpFuncDef,  &&L_OpCall,        &&L_OpReturn,
-      &&L_OpVarDef,     &&L_OpGetVar,   &&L_OpBranch,      &&L_OpMakeList,
-      &&L_OpSetArgFrom, &&L_OpDumpEnv};
+      &&L_OpPop,      &&L_OpPush,       &&L_OpAllocLvars,  &&L_OpFreeLvars,
+      &&L_OpGetLocal, &&L_OpSetLocal,   &&L_OpSetArgLocal, &&L_OpAdd,
+      &&L_OpSub,      &&L_OpMul,        &&L_OpDiv,         &&L_OpMod,
+      &&L_OpEq,       &&L_OpNeq,        &&L_OpLt,          &&L_OpLeq,
+      &&L_OpGt,       &&L_OpGeq,        &&L_OpPrint,       &&L_OpPrintln,
+      &&L_OpJumpRel,  &&L_OpFuncDef,    &&L_OpCall,        &&L_OpReturn,
+      &&L_OpVarDef,   &&L_OpGetVar,     &&L_OpSetVar,      &&L_OpBranch,
+      &&L_OpMakeList, &&L_OpSetArgFrom, &&L_OpDumpEnv};
   static const long long int table_len = sizeof(table) / sizeof(table[0]);
   void **ops_ptr = gen_table(table, table_len, v_ins, &&L_end);
 
-  // printf("op: %s, reg: %p, reg->pc: %ld\n", #op_name, reg, reg->pc);
+//    printf("op: %s, reg: %p, reg->pc: %ld\n", #op_name, reg, reg->pc);
 #define DTHC_CASE(op_name, proc_code)                                          \
   L_##op_name : {                                                              \
     proc_code;                                                                 \
@@ -847,6 +976,11 @@ L_OP_SELECT:
     VMValue *v = get_Env(frame->env, var_name);
     // printf("get! name: %s, val: %s\n", var_name, show_VMValue(v));
     push_Stack(stack, v);
+  });
+  DTHC_CASE(OpSetVar, {
+    sds var_name = (sds)frame->v_ins->data[reg->pc++];
+    VMValue *v = pop_Stack(stack);
+    insert_Env(frame->env, var_name, v);
   });
   DTHC_CASE(OpBranch, {
     long long int tBlock_len =
@@ -1095,6 +1229,12 @@ MAIN_LOOP:
       push_Stack(stack, v);
       break;
     }
+    case OpSetVar: {
+      sds var_name = (sds)frame->v_ins->data[reg->pc++];
+      VMValue *v = pop_Stack(stack);
+      insert_Env(frame->env, var_name, v);
+      break;
+    }
     case OpBranch: {
       long long int tBlock_len =
           (long long int)(intptr_t)frame->v_ins->data[reg->pc++];
@@ -1277,6 +1417,11 @@ void vm_ins_dump_impl(Vector *v_ins, size_t depth) {
       printf("OpGetVar %s\n", var_name);
       break;
     }
+    case OpSetVar: {
+      sds var_name = (sds)v_ins->data[i++];
+      printf("OpSetVar %s\n", var_name);
+      break;
+    }
     case OpBranch: {
       long long int tBlock_len = (long long int)(intptr_t)v_ins->data[i++];
       printf("OpBranch %lld\n", tBlock_len);
@@ -1298,7 +1443,11 @@ void vm_ins_dump_impl(Vector *v_ins, size_t depth) {
       break;
     }
     default:
-      fprintf(stderr, "Unkown op given. op: %lld\n", op);
+      if (0 <= op && op < (long long int)sizeof(op_to_string)) {
+        fprintf(stderr, "Unkown op given. op: %s\n", op_to_string[op]);
+      } else {
+        fprintf(stderr, "Unkown op given. op: %lld\n", op);
+      }
       exit(EXIT_FAILURE);
       break;
     }
