@@ -793,7 +793,7 @@ SexpObject *vm_exec(Vector *v_ins) {
 
   SexpObject *ret = NULL;
   register Stack *stack = new_Stack();
-  Stack *frame_stack = new_Stack();
+  register Stack *frame_stack = new_Stack();
   Frame *frame = new_Frame();
   frame->v_ins = v_ins;
   register Registers *reg = frame->registers;
