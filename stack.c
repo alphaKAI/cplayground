@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-Stack *new_Stack() {
+inline Stack *new_Stack() {
   Stack *stack = xmalloc(sizeof(Stack));
   stack->data = new_vec_with(STACK_DEFAULT_CAPACITY);
   stack->elem_count = 0;
@@ -11,7 +11,7 @@ Stack *new_Stack() {
   return stack;
 }
 
-void free_Stack(Stack **s_ptr, S_DATA_FREE free_func) {
+inline void free_Stack(Stack **s_ptr, S_DATA_FREE free_func) {
   Stack *stack = *s_ptr;
 
   for (size_t i = 0; i < stack->elem_count; i++) {
@@ -21,12 +21,12 @@ void free_Stack(Stack **s_ptr, S_DATA_FREE free_func) {
   xfree(s_ptr);
 }
 
-void push_Stack(Stack *stack, void *val) {
+inline void push_Stack(Stack *stack, void *val) {
   stack->elem_count++;
   vec_push(stack->data, val);
 }
 
-void *pop_Stack(Stack *stack) {
+inline void *pop_Stack(Stack *stack) {
   if (stack->elem_count == 0) {
     fprintf(stderr, "<pop_Stack> Stack is empty!\n");
     exit(EXIT_FAILURE);
@@ -44,7 +44,7 @@ void *peek_Stack(Stack *stack) {
   return stack->data->data[stack->elem_count - 1];
 }
 
-bool isempty_Stack(Stack *stack) {
+inline bool isempty_Stack(Stack *stack) {
   return stack->elem_count == 0;
 }
 

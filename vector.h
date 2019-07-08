@@ -26,6 +26,7 @@ Vector *new_vec_with(size_t capacity);
 Vector *new_vec(void);
 void vec_push(Vector *v, void *elem);
 void vec_pushi(Vector *v, int val);
+void vec_pushlli(Vector *v, long long int val);
 void *vec_get(Vector *v, size_t idx);
 void *vec_pop(Vector *v);
 void *vec_last(Vector *v);

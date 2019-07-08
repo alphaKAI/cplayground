@@ -9,7 +9,7 @@
 #include <gc.h>
 #endif
 
-Vector *new_vec_with(size_t capacity) {
+inline Vector *new_vec_with(size_t capacity) {
   Vector *v = xmalloc(sizeof(Vector));
   v->data = xmalloc(sizeof(void *) * capacity);
   v->capacity = capacity;
@@ -17,7 +17,7 @@ Vector *new_vec_with(size_t capacity) {
   return v;
 }
 
-Vector *new_vec() { return new_vec_with(VECTOR_DEFAULT_CAPACITY); }
+inline Vector *new_vec() { return new_vec_with(VECTOR_DEFAULT_CAPACITY); }
 
 void vec_expand(Vector *v, size_t size) {
   if (v->len < size) {
@@ -31,7 +31,7 @@ void vec_expand(Vector *v, size_t size) {
   }
 }
 
-void vec_push(Vector *v, void *elem) {
+inline void vec_push(Vector *v, void *elem) {
   if (v->len == v->capacity) {
     v->capacity *= 2;
 #ifdef __USE_BOEHM_GC__
@@ -43,7 +43,8 @@ void vec_push(Vector *v, void *elem) {
   v->data[v->len++] = elem;
 }
 
-void vec_pushi(Vector *v, int val) { vec_push(v, (void *)(intptr_t)val); }
+inline void vec_pushi(Vector *v, int val) { vec_push(v, (void *)(intptr_t)val); }
+inline void vec_pushlli(Vector *v, long long int val) { vec_push(v, (void *)val); }
 
 void *vec_pop(Vector *v) {
   assert(v->len);
