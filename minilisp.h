@@ -112,4 +112,6 @@ Vector *vm_compile(Vector *parsed);
 SexpObject *vm_exec(Vector *);
 void vm_ins_dump_impl(Vector *v_ins, size_t depth);
 void vm_ins_dump(Vector *v_ins);
+Vector *vm_binarize(Vector *v_ins);
+Vector *vm_deserialize(Vector *serialized);
 #endif

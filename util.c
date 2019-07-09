@@ -14,7 +14,7 @@
 
 void *xmalloc(size_t size) {
 #ifdef __USE_BOEHM_GC__
-  void *ptr = gc_malloc(size);
+  void *ptr = GC_malloc(size);
 #else
   void *ptr = malloc(size);
 #endif
@@ -27,7 +27,7 @@ void *xmalloc(size_t size) {
 
 void xfreeImpl(void **p_ptr) {
 #ifdef __USE_BOEHM_GC__
-  gc_free(*p_ptr);
+  GC_free(*p_ptr);
 #else
   if (p_ptr == NULL || *p_ptr == NULL) {
     fprintf(stderr, "Given pointer is NULL");
@@ -229,4 +229,40 @@ sds readText(const sds file_path) {
   SizedData sdata = readFile(file_path);
   ((char *)sdata.data)[sdata.size] = '\0';
   return sdsnew((char *)sdata.data);
+}
+
+void write_llis_to_file(const char *file_name, Vector *vec) {
+  FILE *fp = fopen(file_name, "wb");
+
+  if (fp == NULL) {
+    fprintf(stderr, "failed to open %s\n", file_name);
+    exit(EXIT_FAILURE);
+  }
+
+  for (size_t i = 0; i < vec->len; i++) {
+    long long int lli = (long long int)vec->data[i];
+    fwrite(&lli, sizeof(long long int), 1, fp);
+  }
+
+  fclose(fp);
+}
+
+Vector *read_file_from_llis(const char *file_name) {
+  FILE *fp = fopen(file_name, "rb");
+  Vector *ret = new_vec();
+
+  if (fp == NULL) {
+    fprintf(stderr, "failed to open %s\n", file_name);
+    exit(EXIT_FAILURE);
+  }
+
+  long long int lli;
+  size_t size;
+  while ((size = fread(&lli, sizeof(long long int), 1, fp)) != 0) {
+    vec_pushlli(ret, lli);
+  }
+
+  fclose(fp);
+
+  return ret;
 }

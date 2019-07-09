@@ -92,4 +92,22 @@ GenLowersToNumeric(unsigned char, unsigned long long int, uchar, ulli);
     (type *)((char *)__mptr - offsetof(type, member));                         \
   })
 
+#include <assert.h>
+#include <stdio.h>
+
+static inline void unimplemented_msg(char *file_path, int line, char *msg) {
+  if (msg == NULL) {
+    fprintf(stderr, "unimplemented! [File: %s, Line: %d]\n", file_path, line);
+  } else {
+    fprintf(stderr, "unimplemented! [File: %s, Line: %d] msg : %s\n", file_path,
+            line, msg);
+  }
+  assert(0);
+}
+
+#define unimplemented() unimplemented_msg(__FILE__, __LINE__, NULL)
+
+void write_llis_to_file(const char *file_name, Vector *vec);
+
+Vector *read_file_from_llis(const char *file_name);
 #endif
