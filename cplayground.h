@@ -54,4 +54,7 @@
 //////////// StopWatch ///////////////
 #include "stopwatch.h"
 
+//////////// RingBuffer //////////////
+#include "ringbuffer.h"
+
 #endif

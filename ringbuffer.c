@@ -1,5 +1,6 @@
 #include "cplayground.h"
 #include <stddef.h>
+#include <stdlib.h>
 
 RingBuffer *new_RingBuffer(size_t size) {
   RingBuffer *rb = xnew(RingBuffer);
